@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 
@@ -61,12 +62,14 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<String> registerUser(@Valid @RequestBody SignUpForm signUpRequest) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody SignUpForm signUpRequest) {
         if(userRepository.existsByUsername(signUpRequest.getUsername())) {
-            return new ResponseEntity<String>("Fail -> Username is already taken!",
-                    HttpStatus.BAD_REQUEST);
+            return ResponseEntity.ok(false);
         }
 
+        if(signUpRequest.getRole().contains("user") && (Objects.isNull(signUpRequest.getMatchNumber()) || signUpRequest.getMatchNumber().equals(""))){
+            return ResponseEntity.badRequest().body("Match Number missing");
+        }
         /*if(userRepository.existsByEmail(signUpRequest.getEmail())) {
             return new ResponseEntity<String>("Fail -> Email is already in use!",
                     HttpStatus.BAD_REQUEST);
@@ -78,6 +81,8 @@ public class AuthController {
                 .name(signUpRequest.getName())
                 .email(signUpRequest.getEmail())
                 .password(encoder.encode(signUpRequest.getPassword()))
+                .matchNumber(signUpRequest.getMatchNumber())
+                .phone(signUpRequest.getPhone())
                 .build();
 
         Set<String> strRoles = signUpRequest.getRole();
@@ -107,6 +112,6 @@ public class AuthController {
         user.setRoles(roles);
         userRepository.save(user);
 
-        return ResponseEntity.ok().body("User registered successfully!");
+        return ResponseEntity.ok(true);
     }
 }

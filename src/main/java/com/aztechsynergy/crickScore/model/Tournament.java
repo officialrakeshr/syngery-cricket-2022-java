@@ -22,6 +22,8 @@ public class Tournament {
 
     private String team2;
 
+    private Boolean started;
+
     private Boolean completed;
 
     private Boolean enable11;

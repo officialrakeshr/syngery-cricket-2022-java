@@ -38,6 +38,10 @@ public class User {
     @Email
     private String email;
 
+    private String phone;
+
+    private String matchNumber;
+
     @NotBlank
     @Size(min = 6, max = 100)
     private String password;

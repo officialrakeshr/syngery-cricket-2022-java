@@ -11,11 +11,9 @@ import javax.persistence.*;
 @Builder
 @Entity
 @Table(name = "points_db")
-public class Points {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Points implements Comparable<Points>{
     private String matchNo;
+    @Id
     private String username;
     private Integer rank_no;
     private Double total;
@@ -37,4 +35,9 @@ public class Points {
     private Double player7Point;
     private Double player8Point;
     private Double player9Point;
+
+    @Override
+    public int compareTo(Points o) {
+        return this.getTotal().compareTo(o.getTotal());
+    }
 }

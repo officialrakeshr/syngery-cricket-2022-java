@@ -12,12 +12,13 @@ import javax.persistence.Table;
 @Getter
 @Builder
 @Entity
+@ToString
 @Table(name = "score_db")
 public class ScoringDB {
     @Id
     private String lookup;
     private String matchNo;
-    private String playerId;
+    private Long playerId;
     private String playerName;
     private Boolean batting;
     private Boolean bowling;
@@ -25,7 +26,7 @@ public class ScoringDB {
     private Integer ballsFaced;
     private Integer fours;
     private Integer sixes;
-    private Integer ducks;
+    private Boolean duck;
     private Double  overs;
     private Integer  dots;
     private Integer  runsConceded;
@@ -34,6 +35,7 @@ public class ScoringDB {
     private Integer  score30;
     private Integer  score50;
     private Integer  score100;
+    private Integer  score150;
     private Integer  wicket3;
     private Integer  wicket4;
     private Integer  wicket5;
@@ -46,4 +48,9 @@ public class ScoringDB {
     private Integer  dotBonus;
     private Integer  bonusFor3wk4wk5wk6wk;
     private Integer  catchBonus;
+    private Double strikeRate;
+    private Double economy;
+    private Integer  sRBonus;
+    private Integer  economyBonus;
+    private Integer  totalPlayerPoint;
 }

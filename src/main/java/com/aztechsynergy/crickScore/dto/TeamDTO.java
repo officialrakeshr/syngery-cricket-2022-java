@@ -5,12 +5,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.ArrayList;
+import java.util.List;
 
 @Setter
 @Getter
 @Builder
 public class TeamDTO{
-    public ArrayList<Player> players;
+    public List<Player> players;
     public String name;
 }
