@@ -10,6 +10,7 @@ import org.apache.poi.util.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -145,10 +146,23 @@ public class HomeController {
         return ResponseEntity.ok(pointsRepository.findByUsername(user.get().getUsername()));
     }
 
-    @GetMapping("/findAllRank")
-    public ResponseEntity<?> findAllRank() {
-        return ResponseEntity.ok(pointsRepository.findAllRank());
+    @GetMapping("/findAllRankForPlayers")
+    public ResponseEntity<?> findAllRankForPlayers(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear) {
+        Optional<User> user = findGuestByToken(bear);
+        if(!user.isPresent()) return ResponseEntity.ok(false);
+        return ResponseEntity.ok(pointsRepository.findAllRankForPlayers(user.get().getMatchNumber()));
     }
+    @GetMapping("/findAllRankByMatch")
+    public ResponseEntity<?> findAllRankByMatch(@RequestParam(name = "matchNo") String matchNo) {
+        return ResponseEntity.ok(pointsRepository.findAllRankForPlayers(matchNo));
+    }
+
+    @PostMapping("/createNewMatch")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> createNewMatch(@RequestBody Tournament tournament) {
+        return ResponseEntity.ok(tournamentRepository.save(tournament));
+    }
+
     @PostMapping("/updateInningsSession")
     public ResponseEntity<?> updateInningsSession(@RequestBody InningsSession match) {
         System.out.println(match.toString());
