@@ -1,6 +1,7 @@
 package com.aztechsynergy.crickScore.model;
 
 import lombok.*;
+import org.hibernate.annotations.NaturalId;
 
 import javax.persistence.*;
 
@@ -16,6 +17,7 @@ public class Tournament {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NaturalId
     private String matchNo;
 
     private String team1;
