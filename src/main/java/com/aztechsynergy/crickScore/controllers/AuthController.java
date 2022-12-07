@@ -114,4 +114,10 @@ public class AuthController {
 
         return ResponseEntity.ok(true);
     }
+
+    @GetMapping("/test")
+    public ResponseEntity<?> test() {
+
+        return ResponseEntity.ok("Test");
+    }
 }
