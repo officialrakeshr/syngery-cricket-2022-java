@@ -16,7 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 
-@CrossOrigin(origins = "*", maxAge = 3600)
+@CrossOrigin(origins = "*", maxAge = 86400)
 @RestController
 public class HomeKeepController {
     private static final Random generator = new Random();
