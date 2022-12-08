@@ -137,7 +137,7 @@ public class HomeController {
         if(!user.isPresent()) return ResponseEntity.ok(false);
         Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(user.get().getMatchNumber());
         user.ifPresent(value -> points.setUsername(value.getUsername()));
-        if(tournament.getStarted()) return ResponseEntity.ok(false);
+        if(tournament.getStarted() || !tournament.getEnable11()) return ResponseEntity.ok(false);
         pointsRepository.save(points);
         return ResponseEntity.ok(true);
     }
