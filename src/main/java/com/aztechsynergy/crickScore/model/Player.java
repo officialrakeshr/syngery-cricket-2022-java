@@ -19,4 +19,5 @@ public class Player {
     private String name;
     private String team;
     private String active;
+    private String assignedRole;
 }

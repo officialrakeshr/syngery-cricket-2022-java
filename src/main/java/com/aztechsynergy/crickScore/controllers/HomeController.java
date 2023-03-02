@@ -8,6 +8,7 @@ import com.aztechsynergy.crickScore.security.jwt.JwtProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.util.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,6 +23,12 @@ import java.util.stream.Collectors;
 @Slf4j
 @CrossOrigin(origins = "*", maxAge = 86400)
 public class HomeController {
+
+    @Value("${cricket.game.substitution.times}")
+    private Double subTimes;
+
+    @Value("${cricket.game.match.count}")
+    private Integer matchCount;
 
     @Autowired
     private JwtProvider jwtProvider;
@@ -45,6 +52,9 @@ public class HomeController {
     @Autowired
     PointsRepository pointsRepository;
 
+    @Autowired
+    SubstitutionRepository substitutionRepository;
+
     @GetMapping("/players")
     public ResponseEntity<?> listPlayers(@RequestParam(required = false) String team) {
         Map<String, List<Player>> players = new HashMap<>();
@@ -67,6 +77,11 @@ public class HomeController {
         Map<String, List<Tournament>> players = new HashMap<>();
         players.put("tournaments",tournamentRepository.findAll());
         return ResponseEntity.ok(players);
+    }
+
+    @GetMapping("/tournaments/{matchNo}")
+    public ResponseEntity<?> getMatchDetailsByMatchNo(@PathVariable String matchNo) {
+        return ResponseEntity.ok(tournamentRepository.findDistinctFirstByMatchNo(matchNo));
     }
 
     @GetMapping("/matchDetails")
@@ -138,8 +153,44 @@ public class HomeController {
         Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(user.get().getMatchNumber());
         user.ifPresent(value -> points.setUsername(value.getUsername()));
         if(tournament.getStarted() || !tournament.getEnable11()) return ResponseEntity.ok(false);
+        points.setLookUp(pointsLookup(points.getMatchNo(),points.getUsername()));
         pointsRepository.save(points);
         return ResponseEntity.ok(true);
+    }
+    @GetMapping("/getDream9playerConfig/{matchNo}")
+    public ResponseEntity<?> getDream9playerConfig(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear, @PathVariable String matchNo) {
+        Optional<User> user = findGuestByToken(bear);
+        if(user.isPresent()){
+            List<Player> playerList = new ArrayList<>();
+            Points points = pointsRepository.findByLookUp(pointsLookup(matchNo, user.get().getUsername()));
+           if(points!=null){
+               Map<Long,String> map = new HashMap<>();
+               map.put(points.getCaptain(),"captain");
+               map.put(points.getVcaptain() ,"vcaptain");
+               map.put(points.getBowlinghero() ,"bowlinghero");
+               map.put(points.getBattinghero() ,"battinghero");
+               map.put(points.getPlayer5() ,"player5");
+               map.put(points.getPlayer6() ,"player6");
+               map.put(points.getPlayer7() ,"player7");
+               map.put(points.getPlayer8() ,"player8");
+               map.put(points.getPlayer9() ,"player9");
+               map.put(points.getPlayer10() ,"player10");
+               map.put(points.getPlayer11() ,"player11");
+               map.put(points.getPlayer12() ,"player12");
+
+               List<Long> listOfPlayerIds = new ArrayList<>(map.keySet());
+               List<Player> players = playerRepository.findByIdIsIn(listOfPlayerIds);
+               for(Player player : players){
+                   player.setAssignedRole(map.get(player.getId()));
+                   playerList.add(player);
+               }
+               return ResponseEntity.ok(playerList);
+           }
+
+        }else {
+            return ResponseEntity.ok(null);
+        }
+        return ResponseEntity.ok(null);
     }
     @GetMapping("/getDream9Details")
     public ResponseEntity<?> getDream9Details(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear) {
@@ -162,7 +213,8 @@ public class HomeController {
     @PostMapping("/createNewMatch")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createNewMatch(@RequestBody Tournament tournament) {
-        return ResponseEntity.ok(tournamentRepository.save(tournament));
+        Tournament res = tournamentRepository.save(tournament);
+        return ResponseEntity.ok(res);
     }
 
     @PostMapping("/updateInningsSession")
@@ -251,6 +303,10 @@ public class HomeController {
         return ResponseEntity.ok(true);
     }
 
+    @GetMapping("/findSubstitutionByUsername")
+    public ResponseEntity<?> findSubstitutionByUsername(@RequestParam(name = "username") String username) {
+        return ResponseEntity.ok(substitutionRepository.findById(username));
+    }
     private String lookUpMaker(InningsSession match,Player a){
         if(Objects.isNull(a) || Objects.isNull(a.getId())) {
             System.out.println(a);
@@ -263,8 +319,12 @@ public class HomeController {
         List<Points> pointsDatas = pointsRepository.findPointsByMatchNo(matchNo);
         List<ScoringDB> matchScoreDBs = scoringDbRepository.findScoringDBSByMatchNo(matchNo);
         Map<String, Integer> map = new HashMap<>();
+        Map<String, Integer> batMap = new HashMap<>();
+        Map<String, Integer> bowlMap = new HashMap<>();
         for (ScoringDB score : matchScoreDBs) {
             map.put(score.getLookup(), score.getTotalPlayerPoint());
+            batMap.put(score.getLookup(),score.getBattingPoints());
+            bowlMap.put(score.getLookup(),score.getBowlingPoints());
         }
         for (Points p : pointsDatas) {
             double total =0;
@@ -276,13 +336,13 @@ public class HomeController {
                 p.setVcaptainPoint(map.get(lookup2(matchNo, p.getVcaptain())) * 1.5);
                 total = total + p.getVcaptainPoint();
             }
-            if(map.get(lookup2(matchNo, p.getPlayer3())) !=null){
-                p.setPlayer3Point(map.get(lookup2(matchNo, p.getPlayer3())) * 1.0);
-                total = total + p.getPlayer3Point();
+            if(batMap.get(lookup2(matchNo, p.getBattinghero())) !=null){
+                p.setBattingheroPoint(map.get(lookup2(matchNo, p.getBattinghero())) * 1.0 + batMap.get(lookup2(matchNo, p.getBattinghero()))*0.5);
+                total = total + p.getBattingheroPoint();
             }
-            if(map.get(lookup2(matchNo, p.getPlayer4())) !=null){
-                p.setPlayer4Point(map.get(lookup2(matchNo, p.getPlayer4())) * 1.0);
-                total = total + p.getPlayer4Point();
+            if(bowlMap.get(lookup2(matchNo, p.getBowlinghero())) !=null){
+                p.setBowlingheroPoint(map.get(lookup2(matchNo, p.getBowlinghero())) * 1.0 + bowlMap.get(lookup2(matchNo, p.getBowlinghero())) * 0.5);
+                total = total + p.getBowlingheroPoint();
             }
             if(map.get(lookup2(matchNo, p.getPlayer5())) !=null){
                 p.setPlayer5Point(map.get(lookup2(matchNo, p.getPlayer5())) * 1.0);
@@ -316,6 +376,10 @@ public class HomeController {
     }
     private String lookup2(String matchNo,Long playerID ){
         return matchNo.trim().trim().concat("_").concat(Long.toString(playerID));
+    }
+
+    private String pointsLookup(String matchNo,String username ){
+        return matchNo.trim().trim().concat("_").concat(username);
     }
 
     private void scoreDBFlagProcessor(String matchNo){
@@ -385,6 +449,35 @@ public class HomeController {
                 int bonus = o.getDuck() ? -5 : 0;
                 o.setDuckBonus(bonus);
             }
+            //SR bonus
+            if(Objects.nonNull(o.getStrikeRate()) && o.getStrikeRate()>0){
+                Double P2 = o.getStrikeRate();
+                int bonus = 0;
+                if(P2>170){
+                    bonus = 6;
+                }else if(P2>150 && P2<=170){
+                    bonus = 4;
+                }else if(P2>=130 && P2<=150){
+                    bonus = 2;
+                }else if(P2>=60 && P2<=70){
+                    bonus = -2;
+                }else if(P2>=50 && P2<60){
+                    bonus = -4;
+                }
+                else if(P2<50){
+                    bonus = -6;
+                }
+                o.setSRBonus(bonus);
+            }
+            //batting bonus - batting hero
+            o.setBattingPoints(
+                    (o.getRunScoreBonus()!=null ? o.getRunScoreBonus() : 0) +
+                    (o.getFoursAndSixesBonus()!=null ? o.getFoursAndSixesBonus() : 0)+
+                    (o.getBonusFor30_50_100_150() != null ? o.getBonusFor30_50_100_150():0)+
+                    (o.getDuckBonus()!=null ? o.getDuckBonus() : 0)
+                    +(o.getSRBonus()!=null ? o.getSRBonus() : 0)
+            );
+
             //--------------Bowler--------------
             //Wkts Bonus
             if(Objects.nonNull(o.getWickets()) && o.getWickets()>0){
@@ -408,27 +501,6 @@ public class HomeController {
                 o.setCatchBonus(o.getCatchOrStumps()*4);
             }
 
-            //SR bonus
-            if(Objects.nonNull(o.getStrikeRate()) && o.getStrikeRate()>0){
-                Double P2 = o.getStrikeRate();
-                int bonus = 0;
-                if(P2>170){
-                    bonus = 6;
-                }else if(P2>150 && P2<=170){
-                    bonus = 4;
-                }else if(P2>=130 && P2<=150){
-                    bonus = 2;
-                }else if(P2>=60 && P2<=70){
-                    bonus = -2;
-                }else if(P2>=50 && P2<60){
-                    bonus = -4;
-                }
-                else if(P2<50){
-                    bonus = -6;
-                }
-                o.setSRBonus(bonus);
-            }
-
             //Economy bonus
             if(Objects.nonNull(o.getEconomy()) && o.getEconomy()>0){
                Double U2 = o.getEconomy();
@@ -444,6 +516,13 @@ public class HomeController {
                 }
                 o.setEconomyBonus(bonus);
             }
+            //bowling points
+            o.setBowlingPoints(
+                    (o.getWicketBonus() != null ? o.getWicketBonus() : 0)+
+                            (o.getDotBonus() !=null ? o.getDotBonus() : 0)+
+                            (o.getBonusFor3wk4wk5wk6wk() !=null ? o.getBonusFor3wk4wk5wk6wk() : 0)+
+                            (o.getEconomyBonus() !=null ? o.getEconomyBonus() : 0)
+            );
             //total score
             int totalScrore =0;
             if(Objects.nonNull(o.getRunScoreBonus()) && o.getRunScoreBonus()>0){

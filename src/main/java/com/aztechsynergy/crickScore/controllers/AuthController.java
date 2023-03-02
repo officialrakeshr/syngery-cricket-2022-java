@@ -67,10 +67,10 @@ public class AuthController {
             return ResponseEntity.ok(false);
         }
 
-        if(signUpRequest.getRole().contains("user") && (Objects.isNull(signUpRequest.getMatchNumber()) || signUpRequest.getMatchNumber().equals(""))){
+       /* if(signUpRequest.getRole().contains("user") && (Objects.isNull(signUpRequest.getMatchNumber()) || signUpRequest.getMatchNumber().equals(""))){
             return ResponseEntity.badRequest().body("Match Number missing");
         }
-        /*if(userRepository.existsByEmail(signUpRequest.getEmail())) {
+        if(userRepository.existsByEmail(signUpRequest.getEmail())) {
             return new ResponseEntity<String>("Fail -> Email is already in use!",
                     HttpStatus.BAD_REQUEST);
         }*/

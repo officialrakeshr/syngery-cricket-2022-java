@@ -30,5 +30,10 @@ public class Tournament {
 
     private Boolean enable11;
 
+    private String matchdate;
+
+    private String venue;
+    private String matchtime;
+
 
 }
