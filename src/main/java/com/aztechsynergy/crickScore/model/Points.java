@@ -4,6 +4,7 @@ import lombok.*;
 import org.hibernate.annotations.NaturalId;
 
 import javax.persistence.*;
+import java.util.Date;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -19,7 +20,8 @@ public class Points implements Comparable<Points>{
     private String matchNo;
     private String username;
     private Integer rank_no;
-    private Double total;
+    @Builder.Default
+    private Double total = 0.0;
     private Long captain;
     private Long vcaptain;
     private Long battinghero;
@@ -32,18 +34,31 @@ public class Points implements Comparable<Points>{
     private Long player10;
     private Long player11;
     private Long player12;
-    private Double captainPoint;
-    private Double vcaptainPoint;
-    private Double battingheroPoint;
-    private Double bowlingheroPoint;
-    private Double player5Point;
-    private Double player6Point;
-    private Double player7Point;
-    private Double player8Point;
-    private Double player9Point;
-    private Double player10Point;
-    private Double player11Point;
-    private Double player12Point;
+    @Builder.Default
+    private Double captainPoint = 0.0;
+    @Builder.Default
+    private Double vcaptainPoint = 0.0;
+    @Builder.Default
+    private Double battingheroPoint = 0.0;
+    @Builder.Default
+    private Double bowlingheroPoint = 0.0;
+    private Double player5Point = 0.0;
+    @Builder.Default
+    private Double player6Point = 0.0;
+    @Builder.Default
+    private Double player7Point = 0.0;
+    @Builder.Default
+    private Double player8Point = 0.0;
+    @Builder.Default
+    private Double player9Point = 0.0;
+    @Builder.Default
+    private Double player10Point = 0.0;
+    @Builder.Default
+    private Double player11Point = 0.0;
+    @Builder.Default
+    private Double player12Point = 0.0;
+    private Date lastUpdatedTime;
+
 
     @Override
     public int compareTo(Points o) {

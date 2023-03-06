@@ -33,7 +33,10 @@ public class Tournament {
     private String matchdate;
 
     private String venue;
+
     private String matchtime;
+
+    private Boolean unlimitSubstitution;
 
 
 }

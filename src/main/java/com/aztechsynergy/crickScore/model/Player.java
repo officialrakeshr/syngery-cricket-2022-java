@@ -1,7 +1,6 @@
 package com.aztechsynergy.crickScore.model;
 
 import lombok.*;
-import org.hibernate.annotations.NaturalId;
 
 import javax.persistence.*;
 
@@ -19,5 +18,5 @@ public class Player {
     private String name;
     private String team;
     private String active;
-    private String assignedRole;
+    private transient String assignedRole;
 }
