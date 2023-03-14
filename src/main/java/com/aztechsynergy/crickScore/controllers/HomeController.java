@@ -181,7 +181,49 @@ public class HomeController {
 
         return ResponseEntity.ok(data.orElse(null));
     }
-
+    @GetMapping("/resetToPreviousDay/{matchNo}")
+    public ResponseEntity<?> resetToPreviousDay(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear,@PathVariable String matchNo) {
+        Optional<User> user = findGuestByToken(bear);
+        if(user.isPresent()){
+            Optional<Substitution> prevMatchSub = substitutionRepository.findById(pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), user.get().getUsername()));
+            if(prevMatchSub.isPresent()) {
+                Substitution preSubDa = prevMatchSub.get();
+                int prevSubUnused = preSubDa.getTotal() - preSubDa.getUsed() >-1 ? preSubDa.getTotal() - preSubDa.getUsed() : 0;
+                substitutionRepository.save(Substitution.builder()
+                        .lookUp(pointsLookup(matchNo, user.get().getUsername()))
+                        .username(user.get().getUsername())
+                        .matchNo(matchNo)
+                        .free(2)
+                        .total((2+prevSubUnused)>4 ? 2 : 2+prevSubUnused)
+                        .used(0)
+                        .build());
+            }
+            Points lastPoint = pointsRepository.findByLookUp(pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), user.get().getUsername()));
+            if(lastPoint != null){
+                lastPoint.setLastUpdatedTime(new Date());
+                pointsRepository.save(Points.builder().
+                        lookUp(pointsLookup(matchNo,user.get().getUsername())).
+                        matchNo(matchNo).
+                        username(user.get().getUsername()).
+                        captain(lastPoint.getCaptain()).
+                        vcaptain(lastPoint.getVcaptain()).
+                        battinghero(lastPoint.getBattinghero()).
+                        bowlinghero(lastPoint.getBowlinghero()).
+                        player5(lastPoint.getPlayer5()).
+                        player6(lastPoint.getPlayer6()).
+                        player7(lastPoint.getPlayer7()).
+                        player8(lastPoint.getPlayer8()).
+                        player9(lastPoint.getPlayer9()).
+                        player10(lastPoint.getPlayer10()).
+                        player11(lastPoint.getPlayer11()).
+                        player12(lastPoint.getPlayer12()).
+                        lastUpdatedTime(lastPoint.getLastUpdatedTime()).
+                        build());
+            }
+            return ResponseEntity.ok(true);
+        }
+        return ResponseEntity.ok(false);
+    }
     @PostMapping("/updateDream9Details")
     public ResponseEntity<?> updateDream9Details(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear, @RequestBody Points points) {
         Optional<User> user = findGuestByToken(bear);
@@ -320,6 +362,13 @@ public class HomeController {
         return ResponseEntity.ok(pointsRepository.findAllRankForPlayers(matchNo));
     }
 
+    @GetMapping("/findLeagueRankForPlayers")
+    public ResponseEntity<?> findLeagueRankForPlayers(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear) {
+        Optional<User> user = findGuestByToken(bear);
+        if(!user.isPresent()) return ResponseEntity.ok(false);
+        return ResponseEntity.ok(pointsRepository.findLeagueRankForPlayers());
+    }
+
     @PostMapping("/createNewMatch")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createNewMatch(@RequestBody Tournament tournament) {
@@ -428,6 +477,7 @@ public class HomeController {
     private void pointsDBProcessScore(String matchNo){
         List<Points> pointsDatas = pointsRepository.findPointsByMatchNo(matchNo);
         List<ScoringDB> matchScoreDBs = scoringDbRepository.findScoringDBSByMatchNo(matchNo);
+        Map<String, Substitution> subMap = substitutionRepository.findAllByMatchNo(matchNo).stream().collect(Collectors.toMap(Substitution::getLookUp,o-> o));
         Map<String, Integer> map = new HashMap<>();
         Map<String, Integer> batMap = new HashMap<>();
         Map<String, Integer> bowlMap = new HashMap<>();
@@ -437,6 +487,7 @@ public class HomeController {
             bowlMap.put(score.getLookup(),score.getBowlingPoints());
         }
         for (Points p : pointsDatas) {
+            Substitution sub = subMap.get(p.getLookUp());
             double total =0;
             if(map.get(lookup2(matchNo, p.getCaptain())) !=null){
                 p.setCaptainPoint(map.get(lookup2(matchNo, p.getCaptain())) * 2.0);
@@ -474,7 +525,10 @@ public class HomeController {
                 p.setPlayer9Point(map.get(lookup2(matchNo, p.getPlayer9())) * 1.0);
                 total = total + p.getPlayer9Point();
             }
-
+            if(!Objects.isNull(sub) && sub.getTotal() != null && sub.getTotal() >= 0 &&  sub.getUsed() != null && sub.getUsed() >=0 && sub.getUsed() > sub.getTotal()){
+                p.setOverSubNegativePoints((sub.getTotal() - sub.getUsed()) * 25.0);
+                total = total + p.getOverSubNegativePoints();
+            }
             p.setTotal(total);
         }
         pointsDatas.sort(Collections.reverseOrder());
@@ -665,7 +719,6 @@ public class HomeController {
             if(Objects.nonNull(o.getCatchBonus()) && o.getCatchBonus()>0){
                 totalScrore = totalScrore +o.getCatchBonus();
             }
-
             o.setTotalPlayerPoint(totalScrore);
         });
 

@@ -9,7 +9,9 @@ import com.aztechsynergy.crickScore.model.User;
 import com.aztechsynergy.crickScore.repository.RoleRepository;
 import com.aztechsynergy.crickScore.repository.UserRepository;
 import com.aztechsynergy.crickScore.security.jwt.JwtProvider;
+import com.aztechsynergy.crickScore.security.services.UserPrinciple;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,7 +23,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 
 
@@ -56,9 +57,11 @@ public class AuthController {
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
-
         String jwt = jwtProvider.generateJwtToken(authentication);
-        return ResponseEntity.ok(new JwtResponse(jwt));
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("name", ((UserPrinciple) authentication.getPrincipal()).getName() );
+        headers.add("Access-Control-Expose-Headers" , "name");
+        return new ResponseEntity<>(new JwtResponse(jwt), headers, HttpStatus.OK);
     }
 
     @PostMapping("/signup")

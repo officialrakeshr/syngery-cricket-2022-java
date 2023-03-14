@@ -59,6 +59,9 @@ public class Points implements Comparable<Points>{
     private Double player12Point = 0.0;
     private Date lastUpdatedTime;
 
+    private Double overSubNegativePoints;
+
+
 
     @Override
     public int compareTo(Points o) {
