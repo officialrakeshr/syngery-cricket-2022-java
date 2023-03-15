@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.aztechsynergy</groupId>
-    <artifactId>talentScan</artifactId>
+    <artifactId>aclgame</artifactId>
     <version>1.0</version>
-    <name>talentScan</name>
-    <description>talentScan</description>
+    <name>aclgame</name>
+    <description>aclgame</description>
     <properties>
         <java.version>11</java.version>
     </properties>
@@ -28,6 +28,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+            <version>3.0.4</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
