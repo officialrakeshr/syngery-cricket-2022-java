@@ -649,7 +649,7 @@ public class HomeController {
             }
             //Dot Bonus
             if(Objects.nonNull(o.getDots()) && o.getDots()>0){
-                int bonus = o.getDots() * 6;
+                int bonus = o.getDots() * 3;
                 o.setDotBonus(bonus);
             }
             //3 wkts,4wkts,5wkts,6wkts bonus
