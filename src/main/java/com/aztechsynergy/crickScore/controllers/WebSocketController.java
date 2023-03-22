@@ -23,10 +23,13 @@ public class WebSocketController {
         return true;
     }
 
-    @MessageMapping("/reloadPage")
-    @SendTo("/topic/reload")
-    public Object reload() {
-        return true;
+
+    @GetMapping("/reloadPage")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Boolean> reloadPage() {
+        System.out.println("Reloading page");
+        this.template.convertAndSend("/topic/reloadPage", true);
+        return ResponseEntity.ok(true);
     }
     @GetMapping("/pushMessage")
     @PreAuthorize("hasRole('ADMIN')")

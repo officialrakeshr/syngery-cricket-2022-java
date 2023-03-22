@@ -38,5 +38,7 @@ public class Tournament {
 
     private Boolean unlimitSubstitution;
 
+    private Boolean abandoned;
+
 
 }

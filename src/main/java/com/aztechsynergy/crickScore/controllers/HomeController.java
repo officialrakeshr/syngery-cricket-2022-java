@@ -102,6 +102,50 @@ public class HomeController {
 
         return ResponseEntity.ok(true);
     }
+    @PutMapping("/abandonMatch")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> abandonMatch(@RequestBody Tournament match) {
+        String matchNo = match.getMatchNo();
+        userRepository.findAllUserIds().forEach(o->{
+            Optional<Substitution> prevMatchSub = substitutionRepository.findById(pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), o));
+            if(prevMatchSub.isPresent()) {
+                Substitution preSubDa = prevMatchSub.get();
+                int prevSubUnused = preSubDa.getTotal() - preSubDa.getUsed() >-1 ? preSubDa.getTotal() - preSubDa.getUsed() : 0;
+                substitutionRepository.save(Substitution.builder()
+                        .lookUp(pointsLookup(matchNo, o))
+                        .username(o)
+                        .matchNo(matchNo)
+                        .free(2)
+                        .total((2+prevSubUnused)>4 ? 2 : 2+prevSubUnused)
+                        .used(0)
+                        .build());
+            }
+            Points lastPoint = pointsRepository.findByLookUp(pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), o));
+            if(lastPoint != null){
+                lastPoint.setLastUpdatedTime(new Date());
+                pointsRepository.save(Points.builder().
+                        lookUp(pointsLookup(matchNo,o)).
+                        matchNo(matchNo).
+                        username(o).
+                        captain(lastPoint.getCaptain()).
+                        vcaptain(lastPoint.getVcaptain()).
+                        battinghero(lastPoint.getBattinghero()).
+                        bowlinghero(lastPoint.getBowlinghero()).
+                        player5(lastPoint.getPlayer5()).
+                        player6(lastPoint.getPlayer6()).
+                        player7(lastPoint.getPlayer7()).
+                        player8(lastPoint.getPlayer8()).
+                        player9(lastPoint.getPlayer9()).
+                        player10(lastPoint.getPlayer10()).
+                        player11(lastPoint.getPlayer11()).
+                        player12(lastPoint.getPlayer12()).
+                        lastUpdatedTime(lastPoint.getLastUpdatedTime()).
+                        build());
+            }
+        });
+        match.setAbandoned(true);
+        return ResponseEntity.ok(tournamentRepository.save(match));
+    }
 
     @PutMapping("/updateTournament")
     @PreAuthorize("hasRole('ADMIN')")
@@ -311,7 +355,7 @@ public class HomeController {
         Optional<User> user = findGuestByToken(bear);
         if(user.isPresent()){
             Tournament t = tournamentRepository.findDistinctFirstByMatchNo(matchNo);
-            if(!t.getEnable11()) return ResponseEntity.ok(false);
+            if(!t.getEnable11()) return ResponseEntity.ok(null);
             List<Player> playerList = new ArrayList<>();
             Points points = pointsRepository.findByLookUp(pointsLookup(matchNo, user.get().getUsername()));
            if(points!=null){
