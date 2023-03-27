@@ -22,8 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 
 @RestController
@@ -117,7 +116,26 @@ public class AuthController {
 
         return ResponseEntity.ok(true);
     }
-
+    @PostMapping("/signUpGamers")
+    public ResponseEntity<?> signUpGamers(@Valid @RequestBody List<SignUpForm> signUpRequests) {
+        List<User> users = new ArrayList<>();
+        Optional<Role> userRole = roleRepository.findByName(RoleName.ROLE_USER);
+        // Creating user's account
+        for(SignUpForm signUpRequest : signUpRequests) {
+            User user = User.builder()
+                    .username(signUpRequest.getUsername())
+                    .name(signUpRequest.getName())
+                    .password(encoder.encode(signUpRequest.getUsername()))
+                    .build();
+            Set<String> strRoles = signUpRequest.getRole();
+            Set<Role> roles = new HashSet<>();
+            roles.add(userRole.orElseThrow(null));
+            user.setRoles(roles);
+            users.add(user);
+        }
+        userRepository.saveAll(users);
+        return ResponseEntity.ok(true);
+    }
     @GetMapping("/test")
     public ResponseEntity<?> test() {
 
