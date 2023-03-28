@@ -218,6 +218,11 @@ public class HomeController {
         return ResponseEntity.ok(data.orElse(null));
     }
 
+    @GetMapping("/attemptHack")
+    public ResponseEntity<?> attemptHack() {
+        return ResponseEntity.ok(true);
+    }
+
     @GetMapping("/getStartedTournament")
     public ResponseEntity<?> getStartedTournament() {
 
