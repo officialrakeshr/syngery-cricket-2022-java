@@ -574,6 +574,18 @@ public class HomeController {
                 p.setPlayer9Point(map.get(lookup2(matchNo, p.getPlayer9())) * 1.0);
                 total = total + p.getPlayer9Point();
             }
+            if(map.get(lookup2(matchNo, p.getPlayer10())) !=null){
+                p.setPlayer10Point(map.get(lookup2(matchNo, p.getPlayer10())) * 1.0);
+                total = total + p.getPlayer10Point();
+            }
+            if(map.get(lookup2(matchNo, p.getPlayer11())) !=null){
+                p.setPlayer11Point(map.get(lookup2(matchNo, p.getPlayer11())) * 1.0);
+                total = total + p.getPlayer11Point();
+            }
+            if(map.get(lookup2(matchNo, p.getPlayer12())) !=null){
+                p.setPlayer12Point(map.get(lookup2(matchNo, p.getPlayer12())) * 1.0);
+                total = total + p.getPlayer12Point();
+            }
             if(!Objects.isNull(sub) && sub.getTotal() != null && sub.getTotal() >= 0 &&  sub.getUsed() != null && sub.getUsed() >=0 && sub.getUsed() > sub.getTotal()){
                 p.setOverSubNegativePoints((sub.getTotal() - sub.getUsed()) * 25.0);
                 total = total + p.getOverSubNegativePoints();
@@ -788,7 +800,7 @@ public class HomeController {
             int fullOver = Integer.parseInt(arr[0]);
             int balls = Integer.parseInt(arr[1]);
             Double normalizedOver = (double) ((fullOver * 6 + balls) / 6);
-            return runsCon/normalizedOver;
+            return (runsCon*1.0)/normalizedOver;
         }else return runsCon/overs ;
     }
 
