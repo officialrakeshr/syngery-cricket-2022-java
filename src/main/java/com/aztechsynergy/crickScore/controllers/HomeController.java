@@ -783,7 +783,7 @@ public class HomeController {
     private Double economy(Double overs, Integer runsCon)
     {
         if(Objects.isNull(overs) || overs<1) return 0.0D;
-        String[] arr = String.valueOf(overs).split("\\.");
+        String[] arr = String.valueOf(overs).split(".");
         if(arr.length ==2){
             int fullOver = Integer.parseInt(arr[0]);
             int balls = Integer.parseInt(arr[1]);
