@@ -14,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,7 +23,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @CrossOrigin(origins = "*", maxAge = 86400)
 public class HomeController {
-
+    //constructor of the DecimalFormat class
+    private static final DecimalFormat decfor = new DecimalFormat("0.00");
     @Autowired
     private JwtProvider jwtProvider;
     @Autowired
@@ -265,6 +267,7 @@ public class HomeController {
                                 .player11Point(point.getPlayer11Point())
                                 .player12(playerMap.get(point.getPlayer12()))
                                 .player12Point(point.getPlayer12Point())
+                                .overSubNegativePoints(point.getOverSubNegativePoints())
                                 .total(point.getTotal())
                         .build());
             }
@@ -836,13 +839,14 @@ public class HomeController {
     private Double economy(Double overs, Integer runsCon)
     {
         if(Objects.isNull(overs) || overs<1) return 0.0D;
-        String[] arr = String.valueOf(overs).split(".");
+        String[] arr = String.valueOf(overs).split("\\.");
         if(arr.length ==2){
             int fullOver = Integer.parseInt(arr[0]);
             int balls = Integer.parseInt(arr[1]);
-            Double normalizedOver = (double) ((fullOver * 6 + balls) / 6);
-            return (runsCon*1.0)/normalizedOver;
-        }else return runsCon/overs ;
+            int temp = fullOver * 6 + balls;
+            Double normalizedOver = (double) temp / 6.0;
+            return Double.valueOf(decfor.format((runsCon*1.0)/normalizedOver));
+        }else return Double.valueOf(decfor.format(runsCon*1.0 / overs));
     }
 
     public Optional<User> findGuestByToken(String bear){

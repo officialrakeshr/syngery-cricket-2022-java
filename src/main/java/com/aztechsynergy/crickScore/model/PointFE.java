@@ -46,4 +46,7 @@ public class PointFE {
     private Double player11Point = 0.0;
     @Builder.Default
     private Double player12Point = 0.0;
+
+    @Builder.Default
+    private Double overSubNegativePoints = 0.0;
 }
