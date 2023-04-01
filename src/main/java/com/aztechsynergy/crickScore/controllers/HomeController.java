@@ -231,6 +231,14 @@ public class HomeController {
         return ResponseEntity.ok(data.orElse(null));
     }
 
+    @GetMapping("/getStartedAllTournament")
+    public ResponseEntity<?> getStartedAllTournament() {
+
+        List<Tournament> data = tournamentRepository.findAll().stream().filter(Tournament::getStarted).collect(Collectors.toList());
+
+        return ResponseEntity.ok(data);
+    }
+
     @GetMapping("/scoreSplitForPlayers")
     public ResponseEntity<?> scoreSplitForPlayers(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear) {
         Optional<User> user = findGuestByToken(bear);
