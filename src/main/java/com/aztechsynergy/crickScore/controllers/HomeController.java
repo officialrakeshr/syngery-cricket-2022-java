@@ -122,7 +122,6 @@ public class HomeController {
             }
             Points lastPoint = pointsRepository.findByLookUp(pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), o));
             if(lastPoint != null){
-                lastPoint.setLastUpdatedTime(new Date());
                 pointsRepository.save(Points.builder().
                         lookUp(pointsLookup(matchNo,o)).
                         matchNo(matchNo).
@@ -139,7 +138,7 @@ public class HomeController {
                         player10(lastPoint.getPlayer10()).
                         player11(lastPoint.getPlayer11()).
                         player12(lastPoint.getPlayer12()).
-                        lastUpdatedTime(lastPoint.getLastUpdatedTime()).
+                        lastUpdatedTime(new Date()).
                         build());
             }
         });
@@ -162,10 +161,9 @@ public class HomeController {
                 Optional<Points> lastPoint = pointsRepository.findPointsInDescLastUpdatedPoints(p).stream().findFirst();
                 if(lastPoint.isPresent()){
                     Points last = lastPoint.get();
-                    last.setLastUpdatedTime(new Date());
                     pointsRepository.save(Points.builder().
                             lookUp(pointsLookup(match.getMatchNo(),p)).
-                            matchNo(last.getMatchNo()).
+                            matchNo(match.getMatchNo()).
                             username(last.getUsername()).
                             captain(last.getCaptain()).
                             vcaptain(last.getVcaptain()).
@@ -179,7 +177,7 @@ public class HomeController {
                             player10(last.getPlayer10()).
                             player11(last.getPlayer11()).
                             player12(last.getPlayer12()).
-                            lastUpdatedTime(last.getLastUpdatedTime()).
+                            lastUpdatedTime(new Date()).
                             build());
                 }
 
@@ -230,6 +228,50 @@ public class HomeController {
 
         return ResponseEntity.ok(data.orElse(null));
     }
+
+    @GetMapping("/scoreSplitForPlayers")
+    public ResponseEntity<?> scoreSplitForPlayers(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear) {
+        Optional<User> user = findGuestByToken(bear);
+        if(user.isPresent()){
+            List<Points> points = pointsRepository.findPointsInDescLastUpdatedPoints(user.get().getUsername());
+            Map<Long, String> playerMap = playerRepository.listPlayerNames().stream().collect(Collectors.toMap(Player::getId, Player::getName));
+            List<PointFE> customised = new ArrayList<>();
+            for(Points point: points){
+                customised.add(PointFE
+                        .builder()
+                                .matchNo(point.getMatchNo())
+                                .lookUp(point.getLookUp())
+                                .battinghero(playerMap.get(point.getBattinghero()))
+                                .battingheroPoint(point.getBattingheroPoint())
+                                .bowlinghero(playerMap.get(point.getBowlinghero()))
+                                .bowlingheroPoint(point.getBowlingheroPoint())
+                                .captain(playerMap.get(point.getCaptain()))
+                                .captainPoint(point.getCaptainPoint())
+                                .vcaptain(playerMap.get(point.getVcaptain()))
+                                .vcaptainPoint(point.getVcaptainPoint())
+                                .player5(playerMap.get(point.getPlayer5()))
+                                .player5Point(point.getPlayer5Point())
+                                .player6(playerMap.get(point.getPlayer6()))
+                                .player6Point(point.getPlayer6Point())
+                                .player7(playerMap.get(point.getPlayer7()))
+                                .player7Point(point.getPlayer7Point())
+                                .player8(playerMap.get(point.getPlayer8()))
+                                .player8Point(point.getPlayer8Point())
+                                .player9(playerMap.get(point.getPlayer9()))
+                                .player9Point(point.getPlayer9Point())
+                                .player10(playerMap.get(point.getPlayer10()))
+                                .player10Point(point.getPlayer10Point())
+                                .player11(playerMap.get(point.getPlayer11()))
+                                .player11Point(point.getPlayer11Point())
+                                .player12(playerMap.get(point.getPlayer12()))
+                                .player12Point(point.getPlayer12Point())
+                                .total(point.getTotal())
+                        .build());
+            }
+            return ResponseEntity.ok(customised);
+        }
+        return null;
+    }
     @GetMapping("/resetToPreviousDay/{matchNo}")
     public ResponseEntity<?> resetToPreviousDay(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear,@PathVariable String matchNo) {
         Optional<User> user = findGuestByToken(bear);
@@ -249,7 +291,6 @@ public class HomeController {
             }
             Points lastPoint = pointsRepository.findByLookUp(pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), user.get().getUsername()));
             if(lastPoint != null){
-                lastPoint.setLastUpdatedTime(new Date());
                 pointsRepository.save(Points.builder().
                         lookUp(pointsLookup(matchNo,user.get().getUsername())).
                         matchNo(matchNo).
@@ -266,7 +307,7 @@ public class HomeController {
                         player10(lastPoint.getPlayer10()).
                         player11(lastPoint.getPlayer11()).
                         player12(lastPoint.getPlayer12()).
-                        lastUpdatedTime(lastPoint.getLastUpdatedTime()).
+                        lastUpdatedTime(new Date()).
                         build());
             }
             return ResponseEntity.ok(true);
