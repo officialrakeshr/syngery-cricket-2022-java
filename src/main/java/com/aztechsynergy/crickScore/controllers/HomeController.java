@@ -201,10 +201,10 @@ public class HomeController {
                 }
             });
         }
-        if(match.getStarted()){
+        /**if(match.getStarted()){
             List<Tournament> old = tournamentRepository.findAll().stream().peek(o -> o.setStarted(false)).collect(Collectors.toList());
             tournamentRepository.saveAll(old);
-        }
+        }**/
         tournamentRepository.save(match);
 
         return ResponseEntity.ok(tournamentRepository.save(match));
