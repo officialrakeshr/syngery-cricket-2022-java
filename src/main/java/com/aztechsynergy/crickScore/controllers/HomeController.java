@@ -78,7 +78,10 @@ public class HomeController {
     public ResponseEntity<?> getMatchDetailsByMatchNo(@PathVariable String matchNo) {
         return ResponseEntity.ok(tournamentRepository.findDistinctFirstByMatchNo(matchNo));
     }
-
+    @GetMapping("/getPlayerPointsByMatch/{matchNo}")
+    public ResponseEntity<?> getPlayerPointsByMatch(@PathVariable String matchNo) {
+        return ResponseEntity.ok(tournamentRepository.findPlayerPointsByMatch(matchNo));
+    }
     @GetMapping("/matchDetails")
     public ResponseEntity<?> matchDetails(@RequestParam String matchNo) {
         Tournament a = tournamentRepository.findDistinctFirstByMatchNo(matchNo);
