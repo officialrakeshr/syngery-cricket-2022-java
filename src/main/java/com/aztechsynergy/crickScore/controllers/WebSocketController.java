@@ -31,6 +31,15 @@ public class WebSocketController {
         this.template.convertAndSend("/topic/reloadPage", true);
         return ResponseEntity.ok(true);
     }
+
+    @GetMapping("/logoutAll")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Boolean> logoutAll() {
+        System.out.println("LogoutAll page");
+        this.template.convertAndSend("/topic/logoutAll", true);
+        return ResponseEntity.ok(true);
+    }
+
     @GetMapping("/pushMessage")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Integer> pushMessage(@RequestParam String msg) {
