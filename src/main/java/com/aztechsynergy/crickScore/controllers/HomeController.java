@@ -805,34 +805,34 @@ public class HomeController {
             );
             //total score
             int totalScrore =0;
-            if(Objects.nonNull(o.getRunScoreBonus()) && o.getRunScoreBonus()>0){
+            if(Objects.nonNull(o.getRunScoreBonus())){
                 totalScrore = totalScrore +o.getRunScoreBonus();
             }
-            if(Objects.nonNull(o.getFoursAndSixesBonus()) && o.getFoursAndSixesBonus()>0){
+            if(Objects.nonNull(o.getFoursAndSixesBonus())){
                 totalScrore = totalScrore +o.getFoursAndSixesBonus();
             }
-            if(Objects.nonNull(o.getBonusFor30_50_100_150()) && o.getBonusFor30_50_100_150()>0){
+            if(Objects.nonNull(o.getBonusFor30_50_100_150())){
                 totalScrore = totalScrore +o.getBonusFor30_50_100_150();
             }
-            if(Objects.nonNull(o.getSRBonus()) && o.getSRBonus()>0){
+            if(Objects.nonNull(o.getSRBonus())){
                 totalScrore = totalScrore +o.getSRBonus();
             }
-            if(Objects.nonNull(o.getDuckBonus()) && o.getDuckBonus()>0){
+            if(Objects.nonNull(o.getDuckBonus())){
                 totalScrore = totalScrore +o.getDuckBonus();
             }
-            if(Objects.nonNull(o.getWicketBonus()) && o.getWicketBonus()>0){
+            if(Objects.nonNull(o.getWicketBonus())){
                 totalScrore = totalScrore +o.getWicketBonus();
             }
-            if(Objects.nonNull(o.getDotBonus()) && o.getDotBonus()>0){
+            if(Objects.nonNull(o.getDotBonus())){
                 totalScrore = totalScrore +o.getDotBonus();
             }
-            if(Objects.nonNull(o.getBonusFor3wk4wk5wk6wk()) && o.getBonusFor3wk4wk5wk6wk()>0){
+            if(Objects.nonNull(o.getBonusFor3wk4wk5wk6wk())){
                 totalScrore = totalScrore +o.getBonusFor3wk4wk5wk6wk();
             }
-            if(Objects.nonNull(o.getEconomyBonus()) && o.getEconomyBonus()>0){
+            if(Objects.nonNull(o.getEconomyBonus())){
                 totalScrore = totalScrore +o.getEconomyBonus();
             }
-            if(Objects.nonNull(o.getCatchBonus()) && o.getCatchBonus()>0){
+            if(Objects.nonNull(o.getCatchBonus())){
                 totalScrore = totalScrore +o.getCatchBonus();
             }
             o.setTotalPlayerPoint(totalScrore);
