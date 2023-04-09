@@ -730,7 +730,7 @@ public class HomeController {
                 o.setDuckBonus(bonus);
             }
             //SR bonus
-            if(Objects.nonNull(o.getStrikeRate()) && o.getStrikeRate()>0){
+            if(Objects.nonNull(o.getStrikeRate())){
                 double P2 = o.getStrikeRate();
                 int bonus = 0;
                 if(P2>170){
