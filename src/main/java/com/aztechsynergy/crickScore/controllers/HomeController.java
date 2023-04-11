@@ -82,6 +82,14 @@ public class HomeController {
     public ResponseEntity<?> getPlayerPointsByMatch(@PathVariable String matchNo) {
         return ResponseEntity.ok(tournamentRepository.findPlayerPointsByMatch(matchNo));
     }
+
+    @PostMapping("/createPlayer")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> createPlayer(@RequestBody Player player) {
+        boolean found = playerRepository.findByTeam(player.getName()).stream().anyMatch(o->o.getName().equals(player.getName()));
+        if(found) return ResponseEntity.ok(null);
+        return ResponseEntity.ok(playerRepository.save(Player.builder().active("active").team(player.getTeam()).name(player.getName()).build()));
+    }
     @GetMapping("/matchDetails")
     public ResponseEntity<?> matchDetails(@RequestParam String matchNo) {
         Tournament a = tournamentRepository.findDistinctFirstByMatchNo(matchNo);
