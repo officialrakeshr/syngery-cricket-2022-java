@@ -5,6 +5,7 @@ import com.aztechsynergy.crickScore.dto.TeamDTO;
 import com.aztechsynergy.crickScore.model.*;
 import com.aztechsynergy.crickScore.repository.*;
 import com.aztechsynergy.crickScore.security.jwt.JwtProvider;
+import com.aztechsynergy.crickScore.services.CricInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.util.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,8 @@ public class HomeController {
 
     @Autowired
     SubstitutionRepository substitutionRepository;
+    @Autowired
+    CricInfoService cricInfoService;
 
     @GetMapping("/players")
     public ResponseEntity<?> listPlayers(@RequestParam(required = false) String team) {
@@ -227,6 +230,29 @@ public class HomeController {
         Optional<Tournament> data = tournamentRepository.findAll().stream().filter(Tournament::getEnable11).findFirst();
 
         return ResponseEntity.ok(data.orElse(null));
+    }
+
+    @GetMapping("/getAllActiveDream9Tournaments")
+    public ResponseEntity<?> getAllActiveDream9Tournaments() {
+
+        List<Tournament> data = tournamentRepository.findAll().stream().filter(Tournament::getEnable11).collect(Collectors.toList());
+
+        return ResponseEntity.ok(data);
+    }
+
+    @GetMapping("/getCricInfoMatchDetails")
+    public ResponseEntity<?> getCricInfoMatchDetails(@RequestParam Integer matchId) {
+        return ResponseEntity.ok(cricInfoService.getIPLMatchScoreCard("en",1345038,matchId).get("match"));
+    }
+
+    @GetMapping("/isMatchFirstBallThrown")
+    public ResponseEntity<Boolean> isMatchFirstBallThrown(@RequestParam String matchNo) {
+        Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(matchNo);
+        if(tournament!=null){
+            Map<String, Object> match = (Map<String, Object>) cricInfoService.getIPLMatchScoreCard("en", 1345038, tournament.getCricInfoId()).get("match");
+            return ResponseEntity.ok(match.get("liveOvers") != null && (Double) match.get("liveOvers") > 0.00);
+        }
+        return ResponseEntity.ok(false);
     }
 
     @GetMapping("/attemptHack")

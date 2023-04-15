@@ -40,5 +40,9 @@ public class Tournament {
 
     private Boolean abandoned;
 
+    private Integer cricInfoId;
+
+    private String cricInfoURL;
+
 
 }
