@@ -6,32 +6,43 @@ import com.aztechsynergy.crickScore.model.*;
 import com.aztechsynergy.crickScore.repository.*;
 import com.aztechsynergy.crickScore.security.jwt.JwtProvider;
 import com.aztechsynergy.crickScore.services.CricInfoService;
+
+import java.text.DecimalFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.util.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.text.DecimalFormat;
-import java.util.*;
-import java.util.stream.Collectors;
-
 @RestController
-@RequestMapping(path="/cricket")
+@RequestMapping(path = "/cricket")
 @Slf4j
 @CrossOrigin(origins = "*", maxAge = 86400)
 public class HomeController {
+
     //constructor of the DecimalFormat class
     private static final DecimalFormat decfor = new DecimalFormat("0.00");
+
     @Autowired
     private JwtProvider jwtProvider;
+
     @Autowired
     RoleRepository roleRepository;
+
     @Autowired
     UserRepository userRepository;
+
     @Autowired
     PasswordEncoder encoder;
 
@@ -43,121 +54,175 @@ public class HomeController {
 
     @Autowired
     TournamentRepository tournamentRepository;
+
     @Autowired
     ScoringDbRepository scoringDbRepository;
+
     @Autowired
     PointsRepository pointsRepository;
 
     @Autowired
     SubstitutionRepository substitutionRepository;
+
     @Autowired
     CricInfoService cricInfoService;
 
+    @Autowired
+    private SimpMessagingTemplate template;
+
     @GetMapping("/players")
-    public ResponseEntity<?> listPlayers(@RequestParam(required = false) String team) {
+    public ResponseEntity<?> listPlayers(
+            @RequestParam(required = false) String team
+    ) {
         Map<String, List<Player>> players = new HashMap<>();
-        if(StringUtil.isNotBlank(team)){
-            players.put("players",playerRepository.findByTeam(team));
-        }
-        else players.put("players",playerRepository.findAll());
+        if (StringUtil.isNotBlank(team)) {
+            players.put("players", playerRepository.findByTeam(team));
+        } else players.put("players", playerRepository.findAll());
         return ResponseEntity.ok(players);
     }
 
     @GetMapping("/teams")
     public ResponseEntity<?> listTeams() {
         Map<String, List<Team>> players = new HashMap<>();
-        players.put("teams",teamRepository.findAll());
+        players.put("teams", teamRepository.findAll());
         return ResponseEntity.ok(players);
     }
 
     @GetMapping("/tournaments")
     public ResponseEntity<?> listTournament() {
         Map<String, List<Tournament>> players = new HashMap<>();
-        players.put("tournaments",tournamentRepository.findAll());
+        players.put("tournaments", tournamentRepository.findAll());
         return ResponseEntity.ok(players);
     }
 
     @GetMapping("/tournaments/{matchNo}")
-    public ResponseEntity<?> getMatchDetailsByMatchNo(@PathVariable String matchNo) {
-        return ResponseEntity.ok(tournamentRepository.findDistinctFirstByMatchNo(matchNo));
+    public ResponseEntity<?> getMatchDetailsByMatchNo(
+            @PathVariable String matchNo
+    ) {
+        return ResponseEntity.ok(
+                tournamentRepository.findDistinctFirstByMatchNo(matchNo)
+        );
     }
+
     @GetMapping("/getPlayerPointsByMatch/{matchNo}")
-    public ResponseEntity<?> getPlayerPointsByMatch(@PathVariable String matchNo) {
-        return ResponseEntity.ok(tournamentRepository.findPlayerPointsByMatch(matchNo));
+    public ResponseEntity<?> getPlayerPointsByMatch(
+            @PathVariable String matchNo
+    ) {
+        return ResponseEntity.ok(
+                tournamentRepository.findPlayerPointsByMatch(matchNo)
+        );
     }
 
     @PostMapping("/createPlayer")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createPlayer(@RequestBody Player player) {
-        boolean found = playerRepository.findByTeam(player.getName()).stream().anyMatch(o->o.getName().equals(player.getName()));
-        if(found) return ResponseEntity.ok(null);
-        return ResponseEntity.ok(playerRepository.save(Player.builder().active("active").team(player.getTeam()).name(player.getName()).build()));
+        boolean found = playerRepository
+                .findByTeam(player.getName())
+                .stream()
+                .anyMatch(o -> o.getName().equals(player.getName()));
+        if (found) return ResponseEntity.ok(null);
+        return ResponseEntity.ok(
+                playerRepository.save(
+                        Player
+                                .builder()
+                                .active("active")
+                                .team(player.getTeam())
+                                .name(player.getName())
+                                .build()
+                )
+        );
     }
+
     @GetMapping("/matchDetails")
     public ResponseEntity<?> matchDetails(@RequestParam String matchNo) {
         Tournament a = tournamentRepository.findDistinctFirstByMatchNo(matchNo);
-        return ResponseEntity.ok(MatchDetailsDTO.builder()
-                .matchNo(matchNo)
-                .team1(TeamDTO.builder()
-                        .name(a.getTeam1())
-                        .players(playerRepository.findByTeam(a.getTeam1()) )
-                        .build())
-                .team2(TeamDTO.builder()
-                        .name(a.getTeam2())
-                        .players(playerRepository.findByTeam(a.getTeam2())  )
-                        .build())
-                .build());
+        return ResponseEntity.ok(
+                MatchDetailsDTO
+                        .builder()
+                        .matchNo(matchNo)
+                        .team1(
+                                TeamDTO
+                                        .builder()
+                                        .name(a.getTeam1())
+                                        .players(playerRepository.findByTeam(a.getTeam1()))
+                                        .build()
+                        )
+                        .team2(
+                                TeamDTO
+                                        .builder()
+                                        .name(a.getTeam2())
+                                        .players(playerRepository.findByTeam(a.getTeam2()))
+                                        .build()
+                        )
+                        .build()
+        );
     }
 
     @PutMapping("/updateMatchDetails")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> updateMatchDetails(@RequestBody MatchDetailsDTO match) {
-
+    public ResponseEntity<?> updateMatchDetails(
+            @RequestBody MatchDetailsDTO match
+    ) {
         playerRepository.saveAll(match.getTeam1().getPlayers());
         playerRepository.saveAll(match.getTeam2().getPlayers());
 
         return ResponseEntity.ok(true);
     }
+
     @PutMapping("/abandonMatch")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> abandonMatch(@RequestBody Tournament match) {
         String matchNo = match.getMatchNo();
-        userRepository.findAllUserIds().forEach(o->{
-            Optional<Substitution> prevMatchSub = substitutionRepository.findById(pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), o));
-            if(prevMatchSub.isPresent()) {
-                Substitution preSubDa = prevMatchSub.get();
-                int prevSubUnused = preSubDa.getTotal() - preSubDa.getUsed() >-1 ? preSubDa.getTotal() - preSubDa.getUsed() : 0;
-                substitutionRepository.save(Substitution.builder()
-                        .lookUp(pointsLookup(matchNo, o))
-                        .username(o)
-                        .matchNo(matchNo)
-                        .free(2)
-                        .total((2+prevSubUnused)>4 ? 2 : 2+prevSubUnused)
-                        .used(0)
-                        .build());
-            }
-            Points lastPoint = pointsRepository.findByLookUp(pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), o));
-            if(lastPoint != null){
-                pointsRepository.save(Points.builder().
-                        lookUp(pointsLookup(matchNo,o)).
-                        matchNo(matchNo).
-                        username(o).
-                        captain(lastPoint.getCaptain()).
-                        vcaptain(lastPoint.getVcaptain()).
-                        battinghero(lastPoint.getBattinghero()).
-                        bowlinghero(lastPoint.getBowlinghero()).
-                        player5(lastPoint.getPlayer5()).
-                        player6(lastPoint.getPlayer6()).
-                        player7(lastPoint.getPlayer7()).
-                        player8(lastPoint.getPlayer8()).
-                        player9(lastPoint.getPlayer9()).
-                        player10(lastPoint.getPlayer10()).
-                        player11(lastPoint.getPlayer11()).
-                        player12(lastPoint.getPlayer12()).
-                        lastUpdatedTime(new Date()).
-                        build());
-            }
-        });
+        userRepository
+                .findAllUserIds()
+                .forEach(o -> {
+                    Optional<Substitution> prevMatchSub = substitutionRepository.findById(
+                            pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), o)
+                    );
+                    if (prevMatchSub.isPresent()) {
+                        Substitution preSubDa = prevMatchSub.get();
+                        int prevSubUnused = preSubDa.getTotal() - preSubDa.getUsed() > -1
+                                ? preSubDa.getTotal() - preSubDa.getUsed()
+                                : 0;
+                        substitutionRepository.save(
+                                Substitution
+                                        .builder()
+                                        .lookUp(pointsLookup(matchNo, o))
+                                        .username(o)
+                                        .matchNo(matchNo)
+                                        .free(2)
+                                        .total((2 + prevSubUnused) > 4 ? 2 : 2 + prevSubUnused)
+                                        .used(0)
+                                        .build()
+                        );
+                    }
+                    Points lastPoint = pointsRepository.findByLookUp(
+                            pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), o)
+                    );
+                    if (lastPoint != null) {
+                        pointsRepository.save(
+                                Points
+                                        .builder()
+                                        .lookUp(pointsLookup(matchNo, o))
+                                        .matchNo(matchNo)
+                                        .username(o)
+                                        .captain(lastPoint.getCaptain())
+                                        .vcaptain(lastPoint.getVcaptain())
+                                        .battinghero(lastPoint.getBattinghero())
+                                        .bowlinghero(lastPoint.getBowlinghero())
+                                        .player5(lastPoint.getPlayer5())
+                                        .player6(lastPoint.getPlayer6())
+                                        .player7(lastPoint.getPlayer7())
+                                        .player8(lastPoint.getPlayer8())
+                                        .player9(lastPoint.getPlayer9())
+                                        .player10(lastPoint.getPlayer10())
+                                        .player11(lastPoint.getPlayer11())
+                                        .player12(lastPoint.getPlayer12())
+                                        .lastUpdatedTime(new Date())
+                                        .build()
+                        );
+                    }
+                });
         match.setAbandoned(true);
         return ResponseEntity.ok(tournamentRepository.save(match));
     }
@@ -165,60 +230,84 @@ public class HomeController {
     @PutMapping("/updateTournament")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateTournament(@RequestBody Tournament match) {
-        if(match.getEnable11()){
-            List<Tournament> old = tournamentRepository.findAll().stream().peek(o -> o.setEnable11(false)).collect(Collectors.toList());
+        if (match.getEnable11()) {
+            List<Tournament> old = tournamentRepository
+                    .findAll()
+                    .stream()
+                    .peek(o -> o.setEnable11(false))
+                    .collect(Collectors.toList());
             tournamentRepository.saveAll(old);
 
             //from points
             List<String> totalPlayers = userRepository.findAllUserIds();
-            List<String> matchUsers = pointsRepository.findUsersByMatchNo(match.getMatchNo());
+            List<String> matchUsers = pointsRepository.findUsersByMatchNo(
+                    match.getMatchNo()
+            );
             totalPlayers.removeAll(matchUsers);
             totalPlayers.forEach(p -> {
-                Optional<Points> lastPoint = pointsRepository.findPointsInDescLastUpdatedPoints(p).stream().findFirst();
-                if(lastPoint.isPresent()){
+                Optional<Points> lastPoint = pointsRepository
+                        .findPointsInDescLastUpdatedPoints(p)
+                        .stream()
+                        .findFirst();
+                if (lastPoint.isPresent()) {
                     Points last = lastPoint.get();
-                    pointsRepository.save(Points.builder().
-                            lookUp(pointsLookup(match.getMatchNo(),p)).
-                            matchNo(match.getMatchNo()).
-                            username(last.getUsername()).
-                            captain(last.getCaptain()).
-                            vcaptain(last.getVcaptain()).
-                            battinghero(last.getBattinghero()).
-                            bowlinghero(last.getBowlinghero()).
-                            player5(last.getPlayer5()).
-                            player6(last.getPlayer6()).
-                            player7(last.getPlayer7()).
-                            player8(last.getPlayer8()).
-                            player9(last.getPlayer9()).
-                            player10(last.getPlayer10()).
-                            player11(last.getPlayer11()).
-                            player12(last.getPlayer12()).
-                            lastUpdatedTime(new Date()).
-                            build());
+                    pointsRepository.save(
+                            Points
+                                    .builder()
+                                    .lookUp(pointsLookup(match.getMatchNo(), p))
+                                    .matchNo(match.getMatchNo())
+                                    .username(last.getUsername())
+                                    .captain(last.getCaptain())
+                                    .vcaptain(last.getVcaptain())
+                                    .battinghero(last.getBattinghero())
+                                    .bowlinghero(last.getBowlinghero())
+                                    .player5(last.getPlayer5())
+                                    .player6(last.getPlayer6())
+                                    .player7(last.getPlayer7())
+                                    .player8(last.getPlayer8())
+                                    .player9(last.getPlayer9())
+                                    .player10(last.getPlayer10())
+                                    .player11(last.getPlayer11())
+                                    .player12(last.getPlayer12())
+                                    .lastUpdatedTime(new Date())
+                                    .build()
+                    );
                 }
 
-                Optional<Substitution> prevMatchSub = substitutionRepository.findById(pointsLookup(String.valueOf(Integer.parseInt(match.getMatchNo()) - 1), p));
-                if(prevMatchSub.isPresent()){
+                Optional<Substitution> prevMatchSub = substitutionRepository.findById(
+                        pointsLookup(
+                                String.valueOf(Integer.parseInt(match.getMatchNo()) - 1),
+                                p
+                        )
+                );
+                if (prevMatchSub.isPresent()) {
                     Substitution prevSub = prevMatchSub.get();
-                    int prevSubUnused = prevSub.getTotal() - prevSub.getUsed() >-1 ? prevSub.getTotal() - prevSub.getUsed() : 0;
-                    Optional<Substitution> subMatch = substitutionRepository.findById(pointsLookup(match.getMatchNo(), p));
-                    if(!subMatch.isPresent()){
-                        substitutionRepository.save(Substitution.builder()
-                                .lookUp(pointsLookup(match.getMatchNo(), p))
-                                .username(p)
-                                .matchNo(match.getMatchNo())
-                                .free(2)
-                                .total((2+prevSubUnused)>4 ? 2 : 2+prevSubUnused)
-                                .used(0)
-                                .build());
+                    int prevSubUnused = prevSub.getTotal() - prevSub.getUsed() > -1
+                            ? prevSub.getTotal() - prevSub.getUsed()
+                            : 0;
+                    Optional<Substitution> subMatch = substitutionRepository.findById(
+                            pointsLookup(match.getMatchNo(), p)
+                    );
+                    if (!subMatch.isPresent()) {
+                        substitutionRepository.save(
+                                Substitution
+                                        .builder()
+                                        .lookUp(pointsLookup(match.getMatchNo(), p))
+                                        .username(p)
+                                        .matchNo(match.getMatchNo())
+                                        .free(2)
+                                        .total((2 + prevSubUnused) > 4 ? 2 : 2 + prevSubUnused)
+                                        .used(0)
+                                        .build()
+                        );
                     }
                 }
             });
         }
         /**if(match.getStarted()){
-            List<Tournament> old = tournamentRepository.findAll().stream().peek(o -> o.setStarted(false)).collect(Collectors.toList());
-            tournamentRepository.saveAll(old);
-        }**/
+         List<Tournament> old = tournamentRepository.findAll().stream().peek(o -> o.setStarted(false)).collect(Collectors.toList());
+         tournamentRepository.saveAll(old);
+         }**/
         tournamentRepository.save(match);
 
         return ResponseEntity.ok(tournamentRepository.save(match));
@@ -226,33 +315,76 @@ public class HomeController {
 
     @GetMapping("/getActiveDream9Tournament")
     public ResponseEntity<?> getActiveDream9Tournament() {
-
-        Optional<Tournament> data = tournamentRepository.findAll().stream().filter(Tournament::getEnable11).findFirst();
+        Optional<Tournament> data = tournamentRepository
+                .findAll()
+                .stream()
+                .filter(Tournament::getEnable11)
+                .findFirst();
 
         return ResponseEntity.ok(data.orElse(null));
     }
 
     @GetMapping("/getAllActiveDream9Tournaments")
     public ResponseEntity<?> getAllActiveDream9Tournaments() {
-
-        List<Tournament> data = tournamentRepository.findAll().stream().filter(Tournament::getEnable11).collect(Collectors.toList());
+        List<Tournament> data = tournamentRepository
+                .findAll()
+                .stream()
+                .filter(Tournament::getEnable11)
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(data);
     }
 
     @GetMapping("/getCricInfoMatchDetails")
-    public ResponseEntity<?> getCricInfoMatchDetails(@RequestParam Integer matchId) {
-        return ResponseEntity.ok(cricInfoService.getIPLMatchScoreCard("en",1345038,matchId).get("match"));
+    public ResponseEntity<?> getCricInfoMatchDetails(
+            @RequestParam Integer matchId
+    ) {
+        return ResponseEntity.ok(
+                cricInfoService.getIPLMatchScoreCard("en", 1345038, matchId).get("match")
+        );
     }
 
     @GetMapping("/isMatchFirstBallThrown")
-    public ResponseEntity<Boolean> isMatchFirstBallThrown(@RequestParam String matchNo) {
-        Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(matchNo);
-        if(tournament!=null){
-            Map<String, Object> match = (Map<String, Object>) cricInfoService.getIPLMatchScoreCard("en", 1345038, tournament.getCricInfoId()).get("match");
-            return ResponseEntity.ok(match.get("liveOvers") != null && (Double) match.get("liveOvers") > 0.00);
+    public ResponseEntity<Boolean> isMatchFirstBallThrown(
+            @RequestParam String matchNo
+    ) {
+        Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(
+                matchNo
+        );
+        if (tournament != null) {
+            Map<String, Object> match = (Map<String, Object>) cricInfoService
+                    .getIPLMatchScoreCard("en", 1345038, tournament.getCricInfoId())
+                    .get("match");
+            return ResponseEntity.ok(
+                    match.get("liveOvers") != null && (Double) match.get("liveOvers") > 0.00
+            );
         }
         return ResponseEntity.ok(false);
+    }
+
+    @Scheduled(cron = "0/20 * 15-23 * * ?", zone = "Asia/Kolkata")
+    public void scheduledMatchStartCheck() {
+        LocalDate currentDate = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        String pattern = "MMMM d, yyyy";
+        String date = currentDate.format(DateTimeFormatter.ofPattern(pattern));
+        System.out.println("In scheduledMatchStartCheck ::"+date);
+        List<Tournament> enabledMatches = tournamentRepository.findTournamentsByEnable11AndMatchdate(
+                date
+        );
+        enabledMatches.forEach(p -> {
+            Map<String, Object> match = (Map<String, Object>) cricInfoService
+                    .getIPLMatchScoreCard("en", 1345038, p.getCricInfoId())
+                    .get("match");
+            if (
+                    match.get("liveOvers") != null && (Double) match.get("liveOvers") > 0.00
+            ) {
+                System.out.println("Match" + p.getMatchNo() + " first ball completed");
+                p.setStarted(true);
+                p.setEnable11(false);
+                tournamentRepository.save(p);
+                this.template.convertAndSend("/topic/reloadPage", true);
+            }
+        });
     }
 
     @GetMapping("/attemptHack")
@@ -262,30 +394,44 @@ public class HomeController {
 
     @GetMapping("/getStartedTournament")
     public ResponseEntity<?> getStartedTournament() {
-
-        Optional<Tournament> data = tournamentRepository.findAll().stream().filter(Tournament::getStarted).findFirst();
+        Optional<Tournament> data = tournamentRepository
+                .findAll()
+                .stream()
+                .filter(Tournament::getStarted)
+                .findFirst();
 
         return ResponseEntity.ok(data.orElse(null));
     }
 
     @GetMapping("/getStartedAllTournament")
     public ResponseEntity<?> getStartedAllTournament() {
-
-        List<Tournament> data = tournamentRepository.findAll().stream().filter(Tournament::getStarted).collect(Collectors.toList());
+        List<Tournament> data = tournamentRepository
+                .findAll()
+                .stream()
+                .filter(Tournament::getStarted)
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(data);
     }
 
     @GetMapping("/scoreSplitForPlayers")
-    public ResponseEntity<?> scoreSplitForPlayers(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear) {
+    public ResponseEntity<?> scoreSplitForPlayers(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String bear
+    ) {
         Optional<User> user = findGuestByToken(bear);
-        if(user.isPresent()){
-            List<Points> points = pointsRepository.findPointsInDescLastUpdatedPoints(user.get().getUsername());
-            Map<Long, String> playerMap = playerRepository.listPlayerNames().stream().collect(Collectors.toMap(Player::getId, Player::getName));
+        if (user.isPresent()) {
+            List<Points> points = pointsRepository.findPointsInDescLastUpdatedPoints(
+                    user.get().getUsername()
+            );
+            Map<Long, String> playerMap = playerRepository
+                    .listPlayerNames()
+                    .stream()
+                    .collect(Collectors.toMap(Player::getId, Player::getName));
             List<PointFE> customised = new ArrayList<>();
-            for(Points point: points){
-                customised.add(PointFE
-                        .builder()
+            for (Points point : points) {
+                customised.add(
+                        PointFE
+                                .builder()
                                 .matchNo(point.getMatchNo())
                                 .lookUp(point.getLookUp())
                                 .battinghero(playerMap.get(point.getBattinghero()))
@@ -314,196 +460,290 @@ public class HomeController {
                                 .player12Point(point.getPlayer12Point())
                                 .overSubNegativePoints(point.getOverSubNegativePoints())
                                 .total(point.getTotal())
-                        .build());
+                                .build()
+                );
             }
             return ResponseEntity.ok(customised);
         }
         return null;
     }
+
     @GetMapping("/resetToPreviousDay/{matchNo}")
-    public ResponseEntity<?> resetToPreviousDay(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear,@PathVariable String matchNo) {
+    public ResponseEntity<?> resetToPreviousDay(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String bear,
+            @PathVariable String matchNo
+    ) {
         Optional<User> user = findGuestByToken(bear);
-        if(user.isPresent()){
-            Optional<Substitution> prevMatchSub = substitutionRepository.findById(pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), user.get().getUsername()));
-            if(prevMatchSub.isPresent()) {
+        if (user.isPresent()) {
+            Optional<Substitution> prevMatchSub = substitutionRepository.findById(
+                    pointsLookup(
+                            String.valueOf(Integer.parseInt(matchNo) - 1),
+                            user.get().getUsername()
+                    )
+            );
+            if (prevMatchSub.isPresent()) {
                 Substitution preSubDa = prevMatchSub.get();
-                int prevSubUnused = preSubDa.getTotal() - preSubDa.getUsed() >-1 ? preSubDa.getTotal() - preSubDa.getUsed() : 0;
-                substitutionRepository.save(Substitution.builder()
-                        .lookUp(pointsLookup(matchNo, user.get().getUsername()))
-                        .username(user.get().getUsername())
-                        .matchNo(matchNo)
-                        .free(2)
-                        .total((2+prevSubUnused)>4 ? 2 : 2+prevSubUnused)
-                        .used(0)
-                        .build());
+                int prevSubUnused = preSubDa.getTotal() - preSubDa.getUsed() > -1
+                        ? preSubDa.getTotal() - preSubDa.getUsed()
+                        : 0;
+                substitutionRepository.save(
+                        Substitution
+                                .builder()
+                                .lookUp(pointsLookup(matchNo, user.get().getUsername()))
+                                .username(user.get().getUsername())
+                                .matchNo(matchNo)
+                                .free(2)
+                                .total((2 + prevSubUnused) > 4 ? 2 : 2 + prevSubUnused)
+                                .used(0)
+                                .build()
+                );
             }
-            Points lastPoint = pointsRepository.findByLookUp(pointsLookup(String.valueOf(Integer.parseInt(matchNo) - 1), user.get().getUsername()));
-            if(lastPoint != null){
-                pointsRepository.save(Points.builder().
-                        lookUp(pointsLookup(matchNo,user.get().getUsername())).
-                        matchNo(matchNo).
-                        username(user.get().getUsername()).
-                        captain(lastPoint.getCaptain()).
-                        vcaptain(lastPoint.getVcaptain()).
-                        battinghero(lastPoint.getBattinghero()).
-                        bowlinghero(lastPoint.getBowlinghero()).
-                        player5(lastPoint.getPlayer5()).
-                        player6(lastPoint.getPlayer6()).
-                        player7(lastPoint.getPlayer7()).
-                        player8(lastPoint.getPlayer8()).
-                        player9(lastPoint.getPlayer9()).
-                        player10(lastPoint.getPlayer10()).
-                        player11(lastPoint.getPlayer11()).
-                        player12(lastPoint.getPlayer12()).
-                        lastUpdatedTime(new Date()).
-                        build());
+            Points lastPoint = pointsRepository.findByLookUp(
+                    pointsLookup(
+                            String.valueOf(Integer.parseInt(matchNo) - 1),
+                            user.get().getUsername()
+                    )
+            );
+            if (lastPoint != null) {
+                pointsRepository.save(
+                        Points
+                                .builder()
+                                .lookUp(pointsLookup(matchNo, user.get().getUsername()))
+                                .matchNo(matchNo)
+                                .username(user.get().getUsername())
+                                .captain(lastPoint.getCaptain())
+                                .vcaptain(lastPoint.getVcaptain())
+                                .battinghero(lastPoint.getBattinghero())
+                                .bowlinghero(lastPoint.getBowlinghero())
+                                .player5(lastPoint.getPlayer5())
+                                .player6(lastPoint.getPlayer6())
+                                .player7(lastPoint.getPlayer7())
+                                .player8(lastPoint.getPlayer8())
+                                .player9(lastPoint.getPlayer9())
+                                .player10(lastPoint.getPlayer10())
+                                .player11(lastPoint.getPlayer11())
+                                .player12(lastPoint.getPlayer12())
+                                .lastUpdatedTime(new Date())
+                                .build()
+                );
             }
             return ResponseEntity.ok(true);
         }
         return ResponseEntity.ok(false);
     }
+
     @PostMapping("/updateDream9Details")
-    public ResponseEntity<?> updateDream9Details(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear, @RequestBody Points points) {
+    public ResponseEntity<?> updateDream9Details(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String bear,
+            @RequestBody Points points
+    ) {
         Optional<User> user = findGuestByToken(bear);
-        if(!user.isPresent()) return ResponseEntity.ok(false);
-        Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(points.getMatchNo());
+        if (!user.isPresent()) return ResponseEntity.ok(false);
+        Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(
+                points.getMatchNo()
+        );
         user.ifPresent(value -> points.setUsername(value.getUsername()));
-        if( null == tournament || (tournament.getStarted() || !tournament.getEnable11())) return ResponseEntity.ok(false);
-        points.setLookUp(pointsLookup(points.getMatchNo(),points.getUsername()));
+        if (
+                null == tournament ||
+                        (tournament.getStarted() || !tournament.getEnable11())
+        ) return ResponseEntity.ok(false);
+        points.setLookUp(pointsLookup(points.getMatchNo(), points.getUsername()));
         points.setLastUpdatedTime(new Date());
         pointsRepository.save(points);
-        String infinteSubAvailable = substitutionRepository.findMatchByInfinitSubs(points.getUsername());
-        if(!StringUtil.isNotBlank(infinteSubAvailable)){
-            substitutionRepository.save(Substitution.builder()
-                  .lookUp(pointsLookup(points.getMatchNo(),points.getUsername()))
-                  .username(points.getUsername())
-                  .matchNo(points.getMatchNo())
-                  .free(100000)
-                  .total(100000)
-                  .used(0)
-                  .build());
+        String infinteSubAvailable = substitutionRepository.findMatchByInfinitSubs(
+                points.getUsername()
+        );
+        if (!StringUtil.isNotBlank(infinteSubAvailable)) {
+            substitutionRepository.save(
+                    Substitution
+                            .builder()
+                            .lookUp(pointsLookup(points.getMatchNo(), points.getUsername()))
+                            .username(points.getUsername())
+                            .matchNo(points.getMatchNo())
+                            .free(100000)
+                            .total(100000)
+                            .used(0)
+                            .build()
+            );
         }
         return ResponseEntity.ok(true);
     }
 
     @PostMapping("/updateSubstitutionsAndConfig")
-    public ResponseEntity<?> updateSubstitutions(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear, @RequestBody Points points) {
+    public ResponseEntity<?> updateSubstitutions(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String bear,
+            @RequestBody Points points
+    ) {
         Optional<User> user = findGuestByToken(bear);
-        if(!user.isPresent()) return ResponseEntity.ok(false);
-        Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(points.getMatchNo());
+        if (!user.isPresent()) return ResponseEntity.ok(false);
+        Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(
+                points.getMatchNo()
+        );
         user.ifPresent(value -> points.setUsername(value.getUsername()));
-        if( null == tournament || (tournament.getStarted() || !tournament.getEnable11())) return ResponseEntity.ok(false);
-        points.setLookUp(pointsLookup(points.getMatchNo(),points.getUsername()));
+        if (
+                null == tournament ||
+                        (tournament.getStarted() || !tournament.getEnable11())
+        ) return ResponseEntity.ok(false);
+        points.setLookUp(pointsLookup(points.getMatchNo(), points.getUsername()));
         points.setLastUpdatedTime(new Date());
-        Optional<Substitution> prevMatchSub = substitutionRepository.findById(pointsLookup(String.valueOf(Integer.parseInt(points.getMatchNo()) - 1), points.getUsername()));
-        if(prevMatchSub.isPresent()){
+        Optional<Substitution> prevMatchSub = substitutionRepository.findById(
+                pointsLookup(
+                        String.valueOf(Integer.parseInt(points.getMatchNo()) - 1),
+                        points.getUsername()
+                )
+        );
+        if (prevMatchSub.isPresent()) {
             Substitution prevSub = prevMatchSub.get();
-            int prevSubUnused = prevSub.getTotal() - prevSub.getUsed() >-1 ? prevSub.getTotal() - prevSub.getUsed() : 0;
-            Optional<Substitution> subMatch = substitutionRepository.findById(pointsLookup(points.getMatchNo(), points.getUsername()));
-            if(subMatch.isPresent()){
+            int prevSubUnused = prevSub.getTotal() - prevSub.getUsed() > -1
+                    ? prevSub.getTotal() - prevSub.getUsed()
+                    : 0;
+            Optional<Substitution> subMatch = substitutionRepository.findById(
+                    pointsLookup(points.getMatchNo(), points.getUsername())
+            );
+            if (subMatch.isPresent()) {
                 Substitution subV = subMatch.get();
                 subV.setFree(2);
-                subV.setTotal((2+prevSubUnused)>4 ? 2 : 2+prevSubUnused);
-                subV.setUsed(subV.getUsed()+1);
-            }else{
-                substitutionRepository.save(Substitution.builder()
-                        .lookUp(pointsLookup(points.getMatchNo(), points.getUsername()))
-                        .username(points.getUsername())
-                        .matchNo(points.getMatchNo())
-                        .free(2)
-                        .total((2+prevSubUnused)>4 ? 2 : 2+prevSubUnused)
-                        .used(1)
-                        .build());
+                subV.setTotal((2 + prevSubUnused) > 4 ? 2 : 2 + prevSubUnused);
+                subV.setUsed(subV.getUsed() + 1);
+            } else {
+                substitutionRepository.save(
+                        Substitution
+                                .builder()
+                                .lookUp(pointsLookup(points.getMatchNo(), points.getUsername()))
+                                .username(points.getUsername())
+                                .matchNo(points.getMatchNo())
+                                .free(2)
+                                .total((2 + prevSubUnused) > 4 ? 2 : 2 + prevSubUnused)
+                                .used(1)
+                                .build()
+                );
             }
-        }
-        else {
-            Optional<Substitution> sub = substitutionRepository.findById(pointsLookup(points.getMatchNo(), points.getUsername()));
-            String infiniteSubMatch = substitutionRepository.findMatchByInfinitSubs(points.getUsername());
-            if(!sub.isPresent()){
-                substitutionRepository.save(Substitution.builder()
-                        .lookUp(pointsLookup(points.getMatchNo(), points.getUsername()))
-                        .username(points.getUsername())
-                        .matchNo(points.getMatchNo())
-                        .free(!StringUtil.isNotBlank(infiniteSubMatch)? 100000 : 2)
-                        .total(!StringUtil.isNotBlank(infiniteSubMatch)? 100000 : 2)
-                        .used(1)
-                        .build());
-            }else{
+        } else {
+            Optional<Substitution> sub = substitutionRepository.findById(
+                    pointsLookup(points.getMatchNo(), points.getUsername())
+            );
+            String infiniteSubMatch = substitutionRepository.findMatchByInfinitSubs(
+                    points.getUsername()
+            );
+            if (!sub.isPresent()) {
+                substitutionRepository.save(
+                        Substitution
+                                .builder()
+                                .lookUp(pointsLookup(points.getMatchNo(), points.getUsername()))
+                                .username(points.getUsername())
+                                .matchNo(points.getMatchNo())
+                                .free(!StringUtil.isNotBlank(infiniteSubMatch) ? 100000 : 2)
+                                .total(!StringUtil.isNotBlank(infiniteSubMatch) ? 100000 : 2)
+                                .used(1)
+                                .build()
+                );
+            } else {
                 Substitution sub1 = sub.get();
-                sub1.setUsed(sub1.getUsed()+1);
+                sub1.setUsed(sub1.getUsed() + 1);
                 substitutionRepository.save(sub1);
             }
-
         }
 
         pointsRepository.save(points);
         return ResponseEntity.ok(true);
     }
+
     @GetMapping("/getSubstitutionStatus/{matchNo}")
-    public ResponseEntity<?> getSubstitutionStatus(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear, @PathVariable String matchNo) {
+    public ResponseEntity<?> getSubstitutionStatus(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String bear,
+            @PathVariable String matchNo
+    ) {
         Optional<User> user = findGuestByToken(bear);
-        return user.map(value -> ResponseEntity.ok(substitutionRepository.findById(pointsLookup(matchNo, value.getUsername())).orElse(Substitution.builder().free(100000).total(100000).build()))).orElseGet(() -> ResponseEntity.ok(Substitution.builder().build()));
+        return user
+                .map(value ->
+                        ResponseEntity.ok(
+                                substitutionRepository
+                                        .findById(pointsLookup(matchNo, value.getUsername()))
+                                        .orElse(Substitution.builder().free(100000).total(100000).build())
+                        )
+                )
+                .orElseGet(() -> ResponseEntity.ok(Substitution.builder().build()));
     }
+
     @GetMapping("/getDream9playerConfig/{matchNo}")
-    public ResponseEntity<?> getDream9playerConfig(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear, @PathVariable String matchNo) {
+    public ResponseEntity<?> getDream9playerConfig(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String bear,
+            @PathVariable String matchNo
+    ) {
         Optional<User> user = findGuestByToken(bear);
-        if(user.isPresent()){
+        if (user.isPresent()) {
             Tournament t = tournamentRepository.findDistinctFirstByMatchNo(matchNo);
-            if(!t.getEnable11()) return ResponseEntity.ok(null);
+            if (!t.getEnable11()) return ResponseEntity.ok(null);
             List<Player> playerList = new ArrayList<>();
-            Points points = pointsRepository.findByLookUp(pointsLookup(matchNo, user.get().getUsername()));
-           if(points!=null){
-               Map<Long,String> map = new HashMap<>();
-               map.put(points.getCaptain(),"captain");
-               map.put(points.getVcaptain() ,"vcaptain");
-               map.put(points.getBowlinghero() ,"bowlinghero");
-               map.put(points.getBattinghero() ,"battinghero");
-               map.put(points.getPlayer5() ,"player5");
-               map.put(points.getPlayer6() ,"player6");
-               map.put(points.getPlayer7() ,"player7");
-               map.put(points.getPlayer8() ,"player8");
-               map.put(points.getPlayer9() ,"player9");
-               map.put(points.getPlayer10() ,"player10");
-               map.put(points.getPlayer11() ,"player11");
-               map.put(points.getPlayer12() ,"player12");
+            Points points = pointsRepository.findByLookUp(
+                    pointsLookup(matchNo, user.get().getUsername())
+            );
+            if (points != null) {
+                Map<Long, String> map = new HashMap<>();
+                map.put(points.getCaptain(), "captain");
+                map.put(points.getVcaptain(), "vcaptain");
+                map.put(points.getBowlinghero(), "bowlinghero");
+                map.put(points.getBattinghero(), "battinghero");
+                map.put(points.getPlayer5(), "player5");
+                map.put(points.getPlayer6(), "player6");
+                map.put(points.getPlayer7(), "player7");
+                map.put(points.getPlayer8(), "player8");
+                map.put(points.getPlayer9(), "player9");
+                map.put(points.getPlayer10(), "player10");
+                map.put(points.getPlayer11(), "player11");
+                map.put(points.getPlayer12(), "player12");
 
-               List<Long> listOfPlayerIds = new ArrayList<>(map.keySet());
-               List<Player> players = playerRepository.findByIdIsIn(listOfPlayerIds);
+                List<Long> listOfPlayerIds = new ArrayList<>(map.keySet());
+                List<Player> players = playerRepository.findByIdIsIn(listOfPlayerIds);
 
-               players.forEach(player->{
-                   player.setAssignedRole(map.get(player.getId()));
-                   playerList.add(player);
-               });
+                players.forEach(player -> {
+                    player.setAssignedRole(map.get(player.getId()));
+                    playerList.add(player);
+                });
 
-               return ResponseEntity.ok(playerList);
-           }
-        }else {
+                return ResponseEntity.ok(playerList);
+            }
+        } else {
             return ResponseEntity.ok(null);
         }
         return ResponseEntity.ok(null);
     }
+
     @GetMapping("/getDream9Details")
-    public ResponseEntity<?> getDream9Details(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear) {
+    public ResponseEntity<?> getDream9Details(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String bear
+    ) {
         Optional<User> user = findGuestByToken(bear);
-        if(!user.isPresent()) return ResponseEntity.ok(false);
-        return ResponseEntity.ok(pointsRepository.findByUsername(user.get().getUsername()));
+        if (!user.isPresent()) return ResponseEntity.ok(false);
+        return ResponseEntity.ok(
+                pointsRepository.findByUsername(user.get().getUsername())
+        );
     }
 
     @GetMapping("/findAllRankForPlayers")
-    public ResponseEntity<?> findAllRankForPlayers(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear) {
+    public ResponseEntity<?> findAllRankForPlayers(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String bear
+    ) {
         Optional<User> user = findGuestByToken(bear);
-        if(!user.isPresent()) return ResponseEntity.ok(false);
-        return ResponseEntity.ok(pointsRepository.findAllRankForPlayers(user.get().getMatchNumber()));
+        if (!user.isPresent()) return ResponseEntity.ok(false);
+        return ResponseEntity.ok(
+                pointsRepository.findAllRankForPlayers(user.get().getMatchNumber())
+        );
     }
+
     @GetMapping("/findAllRankByMatch")
-    public ResponseEntity<?> findAllRankByMatch(@RequestParam(name = "matchNo") String matchNo) {
+    public ResponseEntity<?> findAllRankByMatch(
+            @RequestParam(name = "matchNo") String matchNo
+    ) {
         return ResponseEntity.ok(pointsRepository.findAllRankForPlayers(matchNo));
     }
 
     @GetMapping("/findLeagueRankForPlayers")
-    public ResponseEntity<?> findLeagueRankForPlayers(@RequestHeader(HttpHeaders.AUTHORIZATION) String bear) {
+    public ResponseEntity<?> findLeagueRankForPlayers(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String bear
+    ) {
         Optional<User> user = findGuestByToken(bear);
-        if(!user.isPresent()) return ResponseEntity.ok(false);
+        if (!user.isPresent()) return ResponseEntity.ok(false);
         return ResponseEntity.ok(pointsRepository.findLeagueRankForPlayers());
     }
 
@@ -515,76 +755,101 @@ public class HomeController {
     }
 
     @PostMapping("/updateInningsSession")
-    public ResponseEntity<?> updateInningsSession(@RequestBody InningsSession match) {
+    public ResponseEntity<?> updateInningsSession(
+            @RequestBody InningsSession match
+    ) {
         System.out.println(match.toString());
         List<BattingSession> battingSession = match.getBattingSession();
         List<BowlingSession> bowlingSession = match.getBowlingSession();
-        Map<String,Integer> catchStump = new HashMap<>();
-        battingSession.forEach(o->{
-            if(Objects.nonNull(o.getCatchOrStumpedBy())){
-                Integer temp = catchStump.get(lookUpMaker(match, o.getCatchOrStumpedBy()));
-                catchStump.put(lookUpMaker(match,o.getCatchOrStumpedBy()) , temp!=null ? temp+1 : 1);
+        Map<String, Integer> catchStump = new HashMap<>();
+        battingSession.forEach(o -> {
+            if (Objects.nonNull(o.getCatchOrStumpedBy())) {
+                Integer temp = catchStump.get(
+                        lookUpMaker(match, o.getCatchOrStumpedBy())
+                );
+                catchStump.put(
+                        lookUpMaker(match, o.getCatchOrStumpedBy()),
+                        temp != null ? temp + 1 : 1
+                );
             }
         });
-        battingSession.forEach(o->{
+        battingSession.forEach(o -> {
             Player batter = o.getBatterName();
             Player catchOrStumpBy = o.getCatchOrStumpedBy();
-            ScoringDB batterData = scoringDbRepository.findScoringDBByLookup(lookUpMaker(match,batter));
-            ScoringDB catchOrStumpByData = scoringDbRepository.findScoringDBByLookup(lookUpMaker(match,catchOrStumpBy));
-            if(Objects.nonNull(batter) && Objects.isNull(batterData)){
-                scoringDbRepository.save(ScoringDB.builder()
-                        .lookup(lookUpMaker(match,batter))
-                        .playerName(batter.getName())
-                        .playerId(batter.getId())
-                        .matchNo(match.getMatch())
-                        .batting(true)
-                        .bowling(false)
-                        .runs(o.getRuns())
-                        .ballsFaced(o.getBalls())
-                        .fours(o.getFours())
-                        .sixes(o.getSixes())
-                        .duck(o.getRuns()==0 && o.isOut())
-                        .build());
-            }else if(Objects.nonNull(batterData)){
+            ScoringDB batterData = scoringDbRepository.findScoringDBByLookup(
+                    lookUpMaker(match, batter)
+            );
+            ScoringDB catchOrStumpByData = scoringDbRepository.findScoringDBByLookup(
+                    lookUpMaker(match, catchOrStumpBy)
+            );
+            if (Objects.nonNull(batter) && Objects.isNull(batterData)) {
+                scoringDbRepository.save(
+                        ScoringDB
+                                .builder()
+                                .lookup(lookUpMaker(match, batter))
+                                .playerName(batter.getName())
+                                .playerId(batter.getId())
+                                .matchNo(match.getMatch())
+                                .batting(true)
+                                .bowling(false)
+                                .runs(o.getRuns())
+                                .ballsFaced(o.getBalls())
+                                .fours(o.getFours())
+                                .sixes(o.getSixes())
+                                .duck(o.getRuns() == 0 && o.isOut())
+                                .build()
+                );
+            } else if (Objects.nonNull(batterData)) {
                 batterData.setBatting(true);
                 batterData.setRuns(o.getRuns());
                 batterData.setBallsFaced(o.getBalls());
                 batterData.setFours(o.getFours());
                 batterData.setSixes(o.getSixes());
-                batterData.setDuck(o.getRuns()==0 && o.isOut());
+                batterData.setDuck(o.getRuns() == 0 && o.isOut());
                 scoringDbRepository.save(batterData);
             }
-            if(Objects.nonNull(catchOrStumpBy) && Objects.isNull(catchOrStumpByData)){
-                scoringDbRepository.save(ScoringDB.builder()
-                        .lookup(lookUpMaker(match,catchOrStumpBy))
-                        .playerName(catchOrStumpBy.getName())
-                        .playerId(catchOrStumpBy.getId())
-                        .matchNo(match.getMatch())
-                        .catchOrStumps(catchStump.get(lookUpMaker(match,catchOrStumpBy)))
-                        .build());
-            }else if(Objects.nonNull(catchOrStumpByData)){
-                catchOrStumpByData.setCatchOrStumps(catchStump.get(lookUpMaker(match,catchOrStumpBy)));
+            if (
+                    Objects.nonNull(catchOrStumpBy) && Objects.isNull(catchOrStumpByData)
+            ) {
+                scoringDbRepository.save(
+                        ScoringDB
+                                .builder()
+                                .lookup(lookUpMaker(match, catchOrStumpBy))
+                                .playerName(catchOrStumpBy.getName())
+                                .playerId(catchOrStumpBy.getId())
+                                .matchNo(match.getMatch())
+                                .catchOrStumps(catchStump.get(lookUpMaker(match, catchOrStumpBy)))
+                                .build()
+                );
+            } else if (Objects.nonNull(catchOrStumpByData)) {
+                catchOrStumpByData.setCatchOrStumps(
+                        catchStump.get(lookUpMaker(match, catchOrStumpBy))
+                );
                 scoringDbRepository.save(catchOrStumpByData);
             }
-
         });
-        bowlingSession.forEach(o->{
+        bowlingSession.forEach(o -> {
             Player bowler = o.getBowlerName();
-            ScoringDB bowlerData = scoringDbRepository.findScoringDBByLookup(lookUpMaker(match,bowler));
-            if(Objects.nonNull(bowler) && Objects.isNull(bowlerData)){
-                scoringDbRepository.save(ScoringDB.builder()
-                        .lookup(lookUpMaker(match,bowler))
-                        .playerName(bowler.getName())
-                        .playerId(bowler.getId())
-                        .matchNo(match.getMatch())
-                        .batting(false)
-                        .bowling(true)
-                        .overs(o.getOvers())
-                        .dots(o.getDots())
-                        .runsConceded(o.getRuns())
-                        .wickets(o.getWickets())
-                        .build());
-            }else if(Objects.nonNull(bowlerData)){
+            ScoringDB bowlerData = scoringDbRepository.findScoringDBByLookup(
+                    lookUpMaker(match, bowler)
+            );
+            if (Objects.nonNull(bowler) && Objects.isNull(bowlerData)) {
+                scoringDbRepository.save(
+                        ScoringDB
+                                .builder()
+                                .lookup(lookUpMaker(match, bowler))
+                                .playerName(bowler.getName())
+                                .playerId(bowler.getId())
+                                .matchNo(match.getMatch())
+                                .batting(false)
+                                .bowling(true)
+                                .overs(o.getOvers())
+                                .dots(o.getDots())
+                                .runsConceded(o.getRuns())
+                                .wickets(o.getWickets())
+                                .build()
+                );
+            } else if (Objects.nonNull(bowlerData)) {
                 bowlerData.setBowling(true);
                 bowlerData.setOvers(o.getOvers());
                 bowlerData.setRunsConceded(o.getRuns());
@@ -601,308 +866,366 @@ public class HomeController {
     }
 
     @GetMapping("/findSubstitutionByUsername")
-    public ResponseEntity<?> findSubstitutionByUsername(@RequestParam(name = "username") String username,@RequestParam(name = "matchNo") String matchNo) {
-        return ResponseEntity.ok(substitutionRepository.findById(pointsLookup(matchNo,username)));
+    public ResponseEntity<?> findSubstitutionByUsername(
+            @RequestParam(name = "username") String username,
+            @RequestParam(name = "matchNo") String matchNo
+    ) {
+        return ResponseEntity.ok(
+                substitutionRepository.findById(pointsLookup(matchNo, username))
+        );
     }
-    private String lookUpMaker(InningsSession match,Player a){
-        if(Objects.isNull(a) || Objects.isNull(a.getId())) {
+
+    private String lookUpMaker(InningsSession match, Player a) {
+        if (Objects.isNull(a) || Objects.isNull(a.getId())) {
             System.out.println(a);
             return "";
         }
         return match.getMatch().trim().concat("_").concat(Long.toString(a.getId()));
     }
 
-    private void pointsDBProcessScore(String matchNo){
+    private void pointsDBProcessScore(String matchNo) {
         List<Points> pointsDatas = pointsRepository.findPointsByMatchNo(matchNo);
-        List<ScoringDB> matchScoreDBs = scoringDbRepository.findScoringDBSByMatchNo(matchNo);
-        Map<String, Substitution> subMap = substitutionRepository.findAllByMatchNo(matchNo).stream().collect(Collectors.toMap(Substitution::getLookUp,o-> o));
+        List<ScoringDB> matchScoreDBs = scoringDbRepository.findScoringDBSByMatchNo(
+                matchNo
+        );
+        Map<String, Substitution> subMap = substitutionRepository
+                .findAllByMatchNo(matchNo)
+                .stream()
+                .collect(Collectors.toMap(Substitution::getLookUp, o -> o));
         Map<String, Integer> map = new HashMap<>();
         Map<String, Integer> batMap = new HashMap<>();
         Map<String, Integer> bowlMap = new HashMap<>();
         for (ScoringDB score : matchScoreDBs) {
             map.put(score.getLookup(), score.getTotalPlayerPoint());
-            batMap.put(score.getLookup(),score.getBattingPoints());
-            bowlMap.put(score.getLookup(),score.getBowlingPoints());
+            batMap.put(score.getLookup(), score.getBattingPoints());
+            bowlMap.put(score.getLookup(), score.getBowlingPoints());
         }
         for (Points p : pointsDatas) {
             Substitution sub = subMap.get(p.getLookUp());
-            double total =0;
-            if(map.get(lookup2(matchNo, p.getCaptain())) !=null){
+            double total = 0;
+            if (map.get(lookup2(matchNo, p.getCaptain())) != null) {
                 p.setCaptainPoint(map.get(lookup2(matchNo, p.getCaptain())) * 2.0);
                 total = total + p.getCaptainPoint();
             }
-            if(map.get(lookup2(matchNo, p.getVcaptain())) !=null){
+            if (map.get(lookup2(matchNo, p.getVcaptain())) != null) {
                 p.setVcaptainPoint(map.get(lookup2(matchNo, p.getVcaptain())) * 1.5);
                 total = total + p.getVcaptainPoint();
             }
-            if(batMap.get(lookup2(matchNo, p.getBattinghero())) !=null){
-                p.setBattingheroPoint(map.get(lookup2(matchNo, p.getBattinghero())) * 1.0 + batMap.get(lookup2(matchNo, p.getBattinghero()))*0.5);
+            if (batMap.get(lookup2(matchNo, p.getBattinghero())) != null) {
+                p.setBattingheroPoint(
+                        map.get(lookup2(matchNo, p.getBattinghero())) *
+                                1.0 +
+                                batMap.get(lookup2(matchNo, p.getBattinghero())) *
+                                        0.5
+                );
                 total = total + p.getBattingheroPoint();
             }
-            if(bowlMap.get(lookup2(matchNo, p.getBowlinghero())) !=null){
-                p.setBowlingheroPoint(map.get(lookup2(matchNo, p.getBowlinghero())) * 1.0 + bowlMap.get(lookup2(matchNo, p.getBowlinghero())) * 0.5);
+            if (bowlMap.get(lookup2(matchNo, p.getBowlinghero())) != null) {
+                p.setBowlingheroPoint(
+                        map.get(lookup2(matchNo, p.getBowlinghero())) *
+                                1.0 +
+                                bowlMap.get(lookup2(matchNo, p.getBowlinghero())) *
+                                        0.5
+                );
                 total = total + p.getBowlingheroPoint();
             }
-            if(map.get(lookup2(matchNo, p.getPlayer5())) !=null){
+            if (map.get(lookup2(matchNo, p.getPlayer5())) != null) {
                 p.setPlayer5Point(map.get(lookup2(matchNo, p.getPlayer5())) * 1.0);
                 total = total + p.getPlayer5Point();
             }
-            if(map.get(lookup2(matchNo, p.getPlayer6())) !=null){
+            if (map.get(lookup2(matchNo, p.getPlayer6())) != null) {
                 p.setPlayer6Point(map.get(lookup2(matchNo, p.getPlayer6())) * 1.0);
                 total = total + p.getPlayer6Point();
             }
-            if(map.get(lookup2(matchNo, p.getPlayer7())) !=null){
+            if (map.get(lookup2(matchNo, p.getPlayer7())) != null) {
                 p.setPlayer7Point(map.get(lookup2(matchNo, p.getPlayer7())) * 1.0);
                 total = total + p.getPlayer7Point();
             }
-            if(map.get(lookup2(matchNo, p.getPlayer8())) !=null){
+            if (map.get(lookup2(matchNo, p.getPlayer8())) != null) {
                 p.setPlayer8Point(map.get(lookup2(matchNo, p.getPlayer8())) * 1.0);
                 total = total + p.getPlayer8Point();
             }
-            if(map.get(lookup2(matchNo, p.getPlayer9())) !=null){
+            if (map.get(lookup2(matchNo, p.getPlayer9())) != null) {
                 p.setPlayer9Point(map.get(lookup2(matchNo, p.getPlayer9())) * 1.0);
                 total = total + p.getPlayer9Point();
             }
-            if(map.get(lookup2(matchNo, p.getPlayer10())) !=null){
+            if (map.get(lookup2(matchNo, p.getPlayer10())) != null) {
                 p.setPlayer10Point(map.get(lookup2(matchNo, p.getPlayer10())) * 1.0);
                 total = total + p.getPlayer10Point();
             }
-            if(map.get(lookup2(matchNo, p.getPlayer11())) !=null){
+            if (map.get(lookup2(matchNo, p.getPlayer11())) != null) {
                 p.setPlayer11Point(map.get(lookup2(matchNo, p.getPlayer11())) * 1.0);
                 total = total + p.getPlayer11Point();
             }
-            if(map.get(lookup2(matchNo, p.getPlayer12())) !=null){
+            if (map.get(lookup2(matchNo, p.getPlayer12())) != null) {
                 p.setPlayer12Point(map.get(lookup2(matchNo, p.getPlayer12())) * 1.0);
                 total = total + p.getPlayer12Point();
             }
-            if(!Objects.isNull(sub) && sub.getTotal() != null && sub.getTotal() >= 0 &&  sub.getUsed() != null && sub.getUsed() >=0 && sub.getUsed() > sub.getTotal()){
+            if (
+                    !Objects.isNull(sub) &&
+                            sub.getTotal() != null &&
+                            sub.getTotal() >= 0 &&
+                            sub.getUsed() != null &&
+                            sub.getUsed() >= 0 &&
+                            sub.getUsed() > sub.getTotal()
+            ) {
                 p.setOverSubNegativePoints((sub.getTotal() - sub.getUsed()) * 25.0);
                 total = total + p.getOverSubNegativePoints();
             }
             p.setTotal(total);
         }
         pointsDatas.sort(Collections.reverseOrder());
-        int rank=0;
-        for (Points p : pointsDatas){
+        int rank = 0;
+        for (Points p : pointsDatas) {
             p.setRank_no(++rank);
         }
         pointsRepository.saveAll(pointsDatas);
     }
-    private String lookup2(String matchNo,Long playerID ){
+
+    private String lookup2(String matchNo, Long playerID) {
         return matchNo.trim().trim().concat("_").concat(Long.toString(playerID));
     }
 
-    private String pointsLookup(String matchNo,String username ){
+    private String pointsLookup(String matchNo, String username) {
         return matchNo.trim().trim().concat("_").concat(username);
     }
 
-    private void scoreDBFlagProcessor(String matchNo){
-        List<ScoringDB> matchScoreDB = scoringDbRepository.findScoringDBSByMatchNo(matchNo);
-        matchScoreDB.forEach(o->{
+    private void scoreDBFlagProcessor(String matchNo) {
+        List<ScoringDB> matchScoreDB = scoringDbRepository.findScoringDBSByMatchNo(
+                matchNo
+        );
+        matchScoreDB.forEach(o -> {
             //score more than 30
-            if(Objects.nonNull(o.getRuns()) && o.getRuns()>=30){
+            if (Objects.nonNull(o.getRuns()) && o.getRuns() >= 30) {
                 o.setScore30(1);
             }
             //score more than 50
-            if(Objects.nonNull(o.getRuns()) && o.getRuns()>=50){
+            if (Objects.nonNull(o.getRuns()) && o.getRuns() >= 50) {
                 o.setScore50(1);
             }
             //score more than 100
-            if(Objects.nonNull(o.getRuns()) && o.getRuns()>=100){
+            if (Objects.nonNull(o.getRuns()) && o.getRuns() >= 100) {
                 o.setScore100(1);
             }
             //score more than 150
-            if(Objects.nonNull(o.getRuns()) && o.getRuns()>=150){
+            if (Objects.nonNull(o.getRuns()) && o.getRuns() >= 150) {
                 o.setScore150(1);
             }
             //3 wickets
-            if(Objects.nonNull(o.getWickets()) && o.getWickets()>=3){
+            if (Objects.nonNull(o.getWickets()) && o.getWickets() >= 3) {
                 o.setWicket3(1);
             }
             //4 wickets
-            if(Objects.nonNull(o.getWickets()) && o.getWickets()>=4){
+            if (Objects.nonNull(o.getWickets()) && o.getWickets() >= 4) {
                 o.setWicket4(1);
             }
             //5 wickets
-            if(Objects.nonNull(o.getWickets()) && o.getWickets()>=5){
+            if (Objects.nonNull(o.getWickets()) && o.getWickets() >= 5) {
                 o.setWicket5(1);
             }
             //6 wickets
-            if(Objects.nonNull(o.getWickets()) && o.getWickets()>=6){
+            if (Objects.nonNull(o.getWickets()) && o.getWickets() >= 6) {
                 o.setWicket6(1);
             }
             //Strike Rate
-            if(Objects.nonNull(o.getRuns()) && Objects.nonNull(o.getBallsFaced()) && o.getBallsFaced()>=6){
-                o.setStrikeRate(strikerate(o.getBallsFaced(),o.getRuns()));
+            if (
+                    Objects.nonNull(o.getRuns()) &&
+                            Objects.nonNull(o.getBallsFaced()) &&
+                            o.getBallsFaced() >= 6
+            ) {
+                o.setStrikeRate(strikerate(o.getBallsFaced(), o.getRuns()));
             }
             // Economy
-            if(Objects.nonNull(o.getRunsConceded()) && Objects.nonNull(o.getOvers()) && o.getOvers()>=1.0){
-                o.setEconomy(economy(o.getOvers(),o.getRunsConceded()));
+            if (
+                    Objects.nonNull(o.getRunsConceded()) &&
+                            Objects.nonNull(o.getOvers()) &&
+                            o.getOvers() >= 1.0
+            ) {
+                o.setEconomy(economy(o.getOvers(), o.getRunsConceded()));
             }
             //---------------Batter-------------------
             //is run scored ?
-            if(Objects.nonNull(o.getRuns()) && o.getRuns()>0){
+            if (Objects.nonNull(o.getRuns()) && o.getRuns() > 0) {
                 o.setRunScoreBonus(o.getRuns());
             }
             //4s & 6s bonus
-            if(Objects.nonNull(o.getFours()) || Objects.nonNull(o.getSixes())){
-                int bonus = Objects.nonNull(o.getFours()) ? o.getFours()*2 : 0;
-                bonus = bonus + (Objects.nonNull(o.getSixes()) ? o.getSixes()*4 : 0);
+            if (Objects.nonNull(o.getFours()) || Objects.nonNull(o.getSixes())) {
+                int bonus = Objects.nonNull(o.getFours()) ? o.getFours() * 2 : 0;
+                bonus = bonus + (Objects.nonNull(o.getSixes()) ? o.getSixes() * 4 : 0);
                 o.setFoursAndSixesBonus(bonus);
             }
             //30,50,100,150 runs
-            if(Objects.nonNull(o.getScore30()) || Objects.nonNull(o.getScore50()) || Objects.nonNull(o.getScore100()) || Objects.nonNull(o.getScore150()) ){
+            if (
+                    Objects.nonNull(o.getScore30()) ||
+                            Objects.nonNull(o.getScore50()) ||
+                            Objects.nonNull(o.getScore100()) ||
+                            Objects.nonNull(o.getScore150())
+            ) {
                 int bonus = Objects.nonNull(o.getScore30()) ? o.getScore30() * 5 : 0;
-                bonus = bonus + (Objects.nonNull(o.getScore50()) ? o.getScore50()*10 : 0);
-                bonus = bonus + (Objects.nonNull(o.getScore100()) ? o.getScore100()*50 : 0);
-                bonus = bonus + (Objects.nonNull(o.getScore150()) ? o.getScore150()*100 : 0);
+                bonus =
+                        bonus + (Objects.nonNull(o.getScore50()) ? o.getScore50() * 10 : 0);
+                bonus =
+                        bonus + (Objects.nonNull(o.getScore100()) ? o.getScore100() * 50 : 0);
+                bonus =
+                        bonus +
+                                (Objects.nonNull(o.getScore150()) ? o.getScore150() * 100 : 0);
                 o.setBonusFor30_50_100_150(bonus);
             }
             //Duck Bonus
-            if(Objects.nonNull(o.getDuck())){
+            if (Objects.nonNull(o.getDuck())) {
                 int bonus = o.getDuck() ? -5 : 0;
                 o.setDuckBonus(bonus);
             }
             //SR bonus
-            if(Objects.nonNull(o.getStrikeRate())){
+            if (Objects.nonNull(o.getStrikeRate())) {
                 double P2 = o.getStrikeRate();
                 int bonus = 0;
-                if(P2>170){
+                if (P2 > 170) {
                     bonus = 6;
-                }else if(P2>150){
+                } else if (P2 > 150) {
                     bonus = 4;
-                }else if(P2>=130){
+                } else if (P2 >= 130) {
                     bonus = 2;
-                }else if(P2>=60 && P2<=70){
+                } else if (P2 >= 60 && P2 <= 70) {
                     bonus = -2;
-                }else if(P2>=50 && P2<60){
+                } else if (P2 >= 50 && P2 < 60) {
                     bonus = -4;
-                }
-                else if(P2<50){
+                } else if (P2 < 50) {
                     bonus = -6;
                 }
                 o.setSRBonus(bonus);
             }
             //batting bonus - batting hero
             o.setBattingPoints(
-                    (o.getRunScoreBonus()!=null ? o.getRunScoreBonus() : 0) +
-                    (o.getFoursAndSixesBonus()!=null ? o.getFoursAndSixesBonus() : 0)+
-                    (o.getBonusFor30_50_100_150() != null ? o.getBonusFor30_50_100_150():0)+
-                    (o.getDuckBonus()!=null ? o.getDuckBonus() : 0)
-                    +(o.getSRBonus()!=null ? o.getSRBonus() : 0)
+                    (o.getRunScoreBonus() != null ? o.getRunScoreBonus() : 0) +
+                            (o.getFoursAndSixesBonus() != null ? o.getFoursAndSixesBonus() : 0) +
+                            (
+                                    o.getBonusFor30_50_100_150() != null
+                                            ? o.getBonusFor30_50_100_150()
+                                            : 0
+                            ) +
+                            (o.getDuckBonus() != null ? o.getDuckBonus() : 0) +
+                            (o.getSRBonus() != null ? o.getSRBonus() : 0)
             );
 
             //--------------Bowler--------------
             //Wkts Bonus
-            if(Objects.nonNull(o.getWickets()) && o.getWickets()>0){
-                o.setWicketBonus(o.getWickets()*25);
+            if (Objects.nonNull(o.getWickets()) && o.getWickets() > 0) {
+                o.setWicketBonus(o.getWickets() * 25);
             }
             //Dot Bonus
-            if(Objects.nonNull(o.getDots()) && o.getDots()>0){
+            if (Objects.nonNull(o.getDots()) && o.getDots() > 0) {
                 int bonus = o.getDots() * 3;
                 o.setDotBonus(bonus);
             }
             //3 wkts,4wkts,5wkts,6wkts bonus
-            if(Objects.nonNull(o.getWicket3()) || Objects.nonNull(o.getWicket4()) || Objects.nonNull(o.getWicket5()) || Objects.nonNull(o.getWicket6()) ){
+            if (
+                    Objects.nonNull(o.getWicket3()) ||
+                            Objects.nonNull(o.getWicket4()) ||
+                            Objects.nonNull(o.getWicket5()) ||
+                            Objects.nonNull(o.getWicket6())
+            ) {
                 int bonus = Objects.nonNull(o.getWicket3()) ? o.getWicket3() * 12 : 0;
-                bonus = bonus + (Objects.nonNull(o.getWicket4()) ? o.getWicket4()*16 : 0);
-                bonus = bonus + (Objects.nonNull(o.getWicket5()) ? o.getWicket5()*20 : 0);
-                bonus = bonus + (Objects.nonNull(o.getWicket6()) ? o.getWicket6()*30 : 0);
+                bonus =
+                        bonus + (Objects.nonNull(o.getWicket4()) ? o.getWicket4() * 16 : 0);
+                bonus =
+                        bonus + (Objects.nonNull(o.getWicket5()) ? o.getWicket5() * 20 : 0);
+                bonus =
+                        bonus + (Objects.nonNull(o.getWicket6()) ? o.getWicket6() * 30 : 0);
                 o.setBonusFor3wk4wk5wk6wk(bonus);
             }
             //Catch Bonus
-            if(Objects.nonNull(o.getCatchOrStumps()) && o.getCatchOrStumps()>0){
-                o.setCatchBonus(o.getCatchOrStumps()*4);
+            if (Objects.nonNull(o.getCatchOrStumps()) && o.getCatchOrStumps() > 0) {
+                o.setCatchBonus(o.getCatchOrStumps() * 4);
             }
 
             //Economy bonus
-            if(Objects.nonNull(o.getEconomy()) && o.getEconomy()>0){
-               double U2 = o.getEconomy();
+            if (Objects.nonNull(o.getEconomy()) && o.getEconomy() > 0) {
+                double U2 = o.getEconomy();
                 int bonus = 0;
-                if(U2<=5){
+                if (U2 <= 5) {
                     bonus = 6;
-                } else if(U2<=7){
+                } else if (U2 <= 7) {
                     bonus = 4;
-                }else if(U2>=10 && U2<=12){
+                } else if (U2 >= 10 && U2 <= 12) {
                     bonus = -4;
-                }else if(U2>12){
+                } else if (U2 > 12) {
                     bonus = -6;
                 }
                 o.setEconomyBonus(bonus);
             }
             //bowling points
             o.setBowlingPoints(
-                    (o.getWicketBonus() != null ? o.getWicketBonus() : 0)+
-                            (o.getDotBonus() !=null ? o.getDotBonus() : 0)+
-                            (o.getBonusFor3wk4wk5wk6wk() !=null ? o.getBonusFor3wk4wk5wk6wk() : 0)+
-                            (o.getEconomyBonus() !=null ? o.getEconomyBonus() : 0)
+                    (o.getWicketBonus() != null ? o.getWicketBonus() : 0) +
+                            (o.getDotBonus() != null ? o.getDotBonus() : 0) +
+                            (
+                                    o.getBonusFor3wk4wk5wk6wk() != null ? o.getBonusFor3wk4wk5wk6wk() : 0
+                            ) +
+                            (o.getEconomyBonus() != null ? o.getEconomyBonus() : 0)
             );
             //total score
-            int totalScrore =0;
-            if(Objects.nonNull(o.getRunScoreBonus())){
-                totalScrore = totalScrore +o.getRunScoreBonus();
+            int totalScrore = 0;
+            if (Objects.nonNull(o.getRunScoreBonus())) {
+                totalScrore = totalScrore + o.getRunScoreBonus();
             }
-            if(Objects.nonNull(o.getFoursAndSixesBonus())){
-                totalScrore = totalScrore +o.getFoursAndSixesBonus();
+            if (Objects.nonNull(o.getFoursAndSixesBonus())) {
+                totalScrore = totalScrore + o.getFoursAndSixesBonus();
             }
-            if(Objects.nonNull(o.getBonusFor30_50_100_150())){
-                totalScrore = totalScrore +o.getBonusFor30_50_100_150();
+            if (Objects.nonNull(o.getBonusFor30_50_100_150())) {
+                totalScrore = totalScrore + o.getBonusFor30_50_100_150();
             }
-            if(Objects.nonNull(o.getSRBonus())){
-                totalScrore = totalScrore +o.getSRBonus();
+            if (Objects.nonNull(o.getSRBonus())) {
+                totalScrore = totalScrore + o.getSRBonus();
             }
-            if(Objects.nonNull(o.getDuckBonus())){
-                totalScrore = totalScrore +o.getDuckBonus();
+            if (Objects.nonNull(o.getDuckBonus())) {
+                totalScrore = totalScrore + o.getDuckBonus();
             }
-            if(Objects.nonNull(o.getWicketBonus())){
-                totalScrore = totalScrore +o.getWicketBonus();
+            if (Objects.nonNull(o.getWicketBonus())) {
+                totalScrore = totalScrore + o.getWicketBonus();
             }
-            if(Objects.nonNull(o.getDotBonus())){
-                totalScrore = totalScrore +o.getDotBonus();
+            if (Objects.nonNull(o.getDotBonus())) {
+                totalScrore = totalScrore + o.getDotBonus();
             }
-            if(Objects.nonNull(o.getBonusFor3wk4wk5wk6wk())){
-                totalScrore = totalScrore +o.getBonusFor3wk4wk5wk6wk();
+            if (Objects.nonNull(o.getBonusFor3wk4wk5wk6wk())) {
+                totalScrore = totalScrore + o.getBonusFor3wk4wk5wk6wk();
             }
-            if(Objects.nonNull(o.getEconomyBonus())){
-                totalScrore = totalScrore +o.getEconomyBonus();
+            if (Objects.nonNull(o.getEconomyBonus())) {
+                totalScrore = totalScrore + o.getEconomyBonus();
             }
-            if(Objects.nonNull(o.getCatchBonus())){
-                totalScrore = totalScrore +o.getCatchBonus();
+            if (Objects.nonNull(o.getCatchBonus())) {
+                totalScrore = totalScrore + o.getCatchBonus();
             }
             o.setTotalPlayerPoint(totalScrore);
         });
 
-       scoringDbRepository.saveAll(matchScoreDB);
+        scoringDbRepository.saveAll(matchScoreDB);
     }
 
-    private double strikerate(Integer ballsFaced, Integer runs)
-    {
-         double ab= (double) runs/ballsFaced;
-         return ab*100;
+    private double strikerate(Integer ballsFaced, Integer runs) {
+        double ab = (double) runs / ballsFaced;
+        return ab * 100;
     }
 
-    private Double economy(Double overs, Integer runsCon)
-    {
-        if(Objects.isNull(overs) || overs<1) return 0.0D;
+    private Double economy(Double overs, Integer runsCon) {
+        if (Objects.isNull(overs) || overs < 1) return 0.0D;
         String[] arr = String.valueOf(overs).split("\\.");
-        if(arr.length ==2){
+        if (arr.length == 2) {
             int fullOver = Integer.parseInt(arr[0]);
             int balls = Integer.parseInt(arr[1]);
             int temp = fullOver * 6 + balls;
             Double normalizedOver = (double) temp / 6.0;
-            return Double.valueOf(decfor.format((runsCon*1.0)/normalizedOver));
-        }else return Double.valueOf(decfor.format(runsCon*1.0 / overs));
+            return Double.valueOf(decfor.format((runsCon * 1.0) / normalizedOver));
+        } else return Double.valueOf(decfor.format(runsCon * 1.0 / overs));
     }
 
-    public Optional<User> findGuestByToken(String bear){
+    public Optional<User> findGuestByToken(String bear) {
         return getGuests(bear, jwtProvider);
     }
 
     private Optional<User> getGuests(String bear, JwtProvider jwtProvider) {
-        if(bear.equals("")) return Optional.empty();
-        String token = bear.replaceAll("Bearer ","").trim();
+        if (bear.equals("")) return Optional.empty();
+        String token = bear.replaceAll("Bearer ", "").trim();
         String user = jwtProvider.getUserNameFromJwtToken(token);
         return userRepository.findByUsername(user);
     }
-
 }
