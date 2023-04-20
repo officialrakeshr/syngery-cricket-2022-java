@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.util.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -34,6 +35,8 @@ public class HomeController {
     //constructor of the DecimalFormat class
     private static final DecimalFormat decfor = new DecimalFormat("0.00");
 
+    @Value("${cricket.cricinfo.seriesId}")
+    private  Integer SeriesID;
     @Autowired
     private JwtProvider jwtProvider;
 
@@ -337,10 +340,39 @@ public class HomeController {
 
     @GetMapping("/getCricInfoMatchDetails")
     public ResponseEntity<?> getCricInfoMatchDetails(
-            @RequestParam Integer matchId
+            @RequestParam String  matchNo
     ) {
+        Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(
+                matchNo
+        );
         return ResponseEntity.ok(
-                cricInfoService.getIPLMatchScoreCard("en", 1345038, matchId).get("match")
+                cricInfoService.getIPLMatchScoreCard("en", SeriesID, tournament.getCricInfoId())
+        );
+    }
+
+    @GetMapping("/getScoreCardByMatchNo")
+    public ResponseEntity<?> getScoreCardByMatchNo(
+            @RequestParam String  matchNo
+    ) {
+        Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(
+                matchNo
+        );
+        Map<String, Object> match = (Map<String, Object>) cricInfoService.getIPLMatchDetails("en", SeriesID, tournament.getCricInfoId(), true);
+        return ResponseEntity.ok(
+                match.get("scorecard")
+        );
+    }
+
+    @GetMapping("/getOverDetailsByMatchNo")
+    public ResponseEntity<?> getOverDetailsByMatchNo(
+            @RequestParam String  matchNo
+    ) {
+        Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(
+                matchNo
+        );
+        Map<String, Object> match = (Map<String, Object>) cricInfoService.getIPLMatchOverDetails("en", SeriesID, tournament.getCricInfoId(), "ALL");
+        return ResponseEntity.ok(
+                match
         );
     }
 
@@ -353,7 +385,7 @@ public class HomeController {
         );
         if (tournament != null) {
             Map<String, Object> match = (Map<String, Object>) cricInfoService
-                    .getIPLMatchScoreCard("en", 1345038, tournament.getCricInfoId())
+                    .getIPLMatchScoreCard("en", SeriesID, tournament.getCricInfoId())
                     .get("match");
             return ResponseEntity.ok(
                     match.get("liveOvers") != null && (Double) match.get("liveOvers") > 0.00

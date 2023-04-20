@@ -12,5 +12,8 @@ public interface CricInfoService {
 
     @GetMapping ("/pages/match/scorecard")
     Map<String,Object> getIPLMatchScoreCard(@RequestParam String lang, @RequestParam Integer seriesId, @RequestParam Integer matchId);
-
+    @GetMapping ("/pages/match/details")
+    Map<String,Object> getIPLMatchDetails(@RequestParam String lang, @RequestParam Integer seriesId, @RequestParam Integer matchId, @RequestParam Boolean latest);
+    @GetMapping ("/pages/match/overs/details")
+    Map<String,Object> getIPLMatchOverDetails(@RequestParam String lang, @RequestParam Integer seriesId, @RequestParam Integer matchId, @RequestParam String mode);
 }
