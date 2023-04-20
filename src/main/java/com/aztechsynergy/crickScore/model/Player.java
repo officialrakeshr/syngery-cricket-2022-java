@@ -19,4 +19,5 @@ public class Player {
     private String team;
     private String active;
     private transient String assignedRole;
+    private String alias;
 }
