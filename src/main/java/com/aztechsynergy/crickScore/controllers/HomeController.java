@@ -120,7 +120,7 @@ public class HomeController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createPlayer(@RequestBody Player player) {
         boolean found = playerRepository
-                .findByTeam(player.getName())
+                .findByTeam(player.getTeam())
                 .stream()
                 .anyMatch(o -> o.getName().equals(player.getName()));
         if (found) return ResponseEntity.ok(null);
@@ -131,6 +131,7 @@ public class HomeController {
                                 .active("active")
                                 .team(player.getTeam())
                                 .name(player.getName())
+                                .alias(player.getAlias())
                                 .build()
                 )
         );
