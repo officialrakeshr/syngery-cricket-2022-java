@@ -11,6 +11,8 @@ import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -66,6 +68,9 @@ public class HomeController {
 
     @Autowired
     SubstitutionRepository substitutionRepository;
+
+    @Autowired
+    LastMatchStartedRepository lastMatchStartedRepository;
 
     @Autowired
     CricInfoService cricInfoService;
@@ -400,10 +405,23 @@ public class HomeController {
         LocalDate currentDate = LocalDate.now(ZoneId.of("Asia/Kolkata"));
         String pattern = "MMMM d, yyyy";
         String date = currentDate.format(DateTimeFormatter.ofPattern(pattern));
-        System.out.println("In scheduledMatchStartCheck ::"+date);
+        System.out.println("In scheduledMatchStartCheck ::"+date+":::Current server Time:"+ new Date());
+        LastMatchStartedDetails LstStartedmatch = lastMatchStartedRepository.findAll().stream().findFirst().orElse(null);
+        if(LstStartedmatch !=null && LstStartedmatch.getNextMatchEnableTime().before(new Date())){
+            int i = Integer.parseInt(LstStartedmatch.getMatchNo()) + 1;
+            Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(String.valueOf(i));
+            if(tournament!=null){
+                tournament.setEnable11(true);
+                this.updateTournament(tournament);
+                lastMatchStartedRepository.deleteAll();
+                this.template.convertAndSend("/topic/pushMessage", "\"Fantastic 12\" enabled for the match no:"+i);
+                this.template.convertAndSend("/topic/reloadPage", true);
+            }
+        }
         List<Tournament> enabledMatches = tournamentRepository.findTournamentsByEnable11AndMatchdate(
                 date
         );
+
         enabledMatches.forEach(p -> {
             Map<String, Object> match = (Map<String, Object>) cricInfoService
                     .getIPLMatchScoreCard("en", 1345038, p.getCricInfoId())
@@ -415,11 +433,19 @@ public class HomeController {
                 p.setStarted(true);
                 p.setEnable11(false);
                 tournamentRepository.save(p);
+                lastMatchStartedRepository.save(LastMatchStartedDetails.builder().matchNo(p.getMatchNo()).matchStartTime(new Date()).nextMatchEnableTime(addMinutesToDate(5, new Date())).build());
+                this.template.convertAndSend("/topic/pushMessage", "Match" + p.getMatchNo() + " first ball completed");
                 this.template.convertAndSend("/topic/reloadPage", true);
             }
         });
     }
+    private Date addMinutesToDate(int minutes, Date beforeTime) {
 
+        long curTimeInMs = beforeTime.getTime();
+        Date afterAddingMins = new Date(curTimeInMs
+                + (minutes * 60000));
+        return afterAddingMins;
+    }
     @GetMapping("/attemptHack")
     public ResponseEntity<?> attemptHack() {
         return ResponseEntity.ok(true);
