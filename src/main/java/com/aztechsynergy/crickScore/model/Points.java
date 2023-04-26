@@ -13,6 +13,7 @@ import java.util.Date;
 @Builder
 @Entity
 @Table(name = "points_db")
+@ToString
 public class Points implements Comparable<Points>{
     @NaturalId
     @Id

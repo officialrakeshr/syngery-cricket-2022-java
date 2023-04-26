@@ -6,16 +6,6 @@ import com.aztechsynergy.crickScore.model.*;
 import com.aztechsynergy.crickScore.repository.*;
 import com.aztechsynergy.crickScore.security.jwt.JwtProvider;
 import com.aztechsynergy.crickScore.services.CricInfoService;
-
-import java.text.DecimalFormat;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
-import java.util.*;
-import java.util.stream.Collectors;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.util.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +17,14 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
+import java.text.DecimalFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(path = "/cricket")
@@ -77,6 +75,9 @@ public class HomeController {
 
     @Autowired
     private SimpMessagingTemplate template;
+
+    @Autowired
+    private AuditRepository auditRepository;
 
     @GetMapping("/players")
     public ResponseEntity<?> listPlayers(
@@ -586,6 +587,13 @@ public class HomeController {
                                 .build()
                 );
             }
+            LocalDateTime localDateTime = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+            String pattern = "yyyy-MM-dd HH:mm:ss";
+            String date = localDateTime.format(DateTimeFormatter.ofPattern(pattern));
+            auditRepository.save(Audit.builder().matchNo(matchNo).lookup(pointsLookup(
+                    String.valueOf(Integer.parseInt(matchNo)),
+                    user.get().getUsername()
+            )).userId(user.get().getUsername()).changeDetails("ResetToPreviousDay::"+date).timestamp(new Date()).build());
             return ResponseEntity.ok(true);
         }
         return ResponseEntity.ok(false);
@@ -608,6 +616,12 @@ public class HomeController {
         ) return ResponseEntity.ok(false);
         points.setLookUp(pointsLookup(points.getMatchNo(), points.getUsername()));
         points.setLastUpdatedTime(new Date());
+        ///AUDIT /////
+        auditRepository.save(Audit.builder().matchNo(points.getMatchNo()).lookup(pointsLookup(
+                String.valueOf(Integer.parseInt(points.getMatchNo())),
+                user.get().getUsername()
+        )).userId(user.get().getUsername()).changeDetails("updateDream9Details(Role Change or Team setting) :"+calculateChanges(points)).requestData(points.toString()).timestamp(new Date()).build());
+        /////////////////////
         pointsRepository.save(points);
         String infinteSubAvailable = substitutionRepository.findMatchByInfinitSubs(
                 points.getUsername()
@@ -702,7 +716,12 @@ public class HomeController {
                 substitutionRepository.save(sub1);
             }
         }
-
+        //Audit/////////////
+        auditRepository.save(Audit.builder().matchNo(points.getMatchNo()).lookup(pointsLookup(
+                String.valueOf(Integer.parseInt(points.getMatchNo())),
+                user.get().getUsername()
+        )).userId(user.get().getUsername()).changeDetails("updateSubstitutionsAndConfig : "+calculateChanges(points)).requestData(points.toString()).timestamp(new Date()).build());
+        /////////////////////////////////
         pointsRepository.save(points);
         return ResponseEntity.ok(true);
     }
@@ -1286,5 +1305,122 @@ public class HomeController {
         String token = bear.replaceAll("Bearer ", "").trim();
         String user = jwtProvider.getUserNameFromJwtToken(token);
         return userRepository.findByUsername(user);
+    }
+
+    private String calculateChanges(Points points){
+        LocalDateTime localDateTime = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+        String pattern = "yyyy-MM-dd HH:mm:ss";
+        String date = localDateTime.format(DateTimeFormatter.ofPattern(pattern));
+        Map<Long, String> mapCurrentPoints = new HashMap<>();
+        Map<Long, String> mapLastPoints = new HashMap<>();
+        StringBuilder stb = new StringBuilder();
+        stb.append("Audit TimeCurrent Local Time: "+date).append("\r\n");
+        mapCurrentPoints.put(points.getCaptain(), "captain");
+        mapCurrentPoints.put(points.getVcaptain(), "vcaptain");
+        mapCurrentPoints.put(points.getBowlinghero(), "bowlinghero");
+        mapCurrentPoints.put(points.getBattinghero(), "battinghero");
+        mapCurrentPoints.put(points.getPlayer5(), "player5");
+        mapCurrentPoints.put(points.getPlayer6(), "player6");
+        mapCurrentPoints.put(points.getPlayer7(), "player7");
+        mapCurrentPoints.put(points.getPlayer8(), "player8");
+        mapCurrentPoints.put(points.getPlayer9(), "player9");
+        mapCurrentPoints.put(points.getPlayer10(), "player10");
+        mapCurrentPoints.put(points.getPlayer11(), "player11");
+        mapCurrentPoints.put(points.getPlayer12(), "player12");
+
+
+        Optional<Points> lastUpdatedPointsOpt = pointsRepository.findPointsInDescLastUpdatedPoints(points.getUsername()).stream().findFirst();
+        if(lastUpdatedPointsOpt.isPresent()){
+            Points lastUpdatedPoints = lastUpdatedPointsOpt.get();
+            mapLastPoints.put(lastUpdatedPoints.getCaptain(), "captain");
+            mapLastPoints.put(lastUpdatedPoints.getVcaptain(), "vcaptain");
+            mapLastPoints.put(lastUpdatedPoints.getBowlinghero(), "bowlinghero");
+            mapLastPoints.put(lastUpdatedPoints.getBattinghero(), "battinghero");
+            mapLastPoints.put(lastUpdatedPoints.getPlayer5(), "player5");
+            mapLastPoints.put(lastUpdatedPoints.getPlayer6(), "player6");
+            mapLastPoints.put(lastUpdatedPoints.getPlayer7(), "player7");
+            mapLastPoints.put(lastUpdatedPoints.getPlayer8(), "player8");
+            mapLastPoints.put(lastUpdatedPoints.getPlayer9(), "player9");
+            mapLastPoints.put(lastUpdatedPoints.getPlayer10(), "player10");
+            mapLastPoints.put(lastUpdatedPoints.getPlayer11(), "player11");
+            mapLastPoints.put(lastUpdatedPoints.getPlayer12(), "player12");
+            Set<Long> allIds = new HashSet<>();
+            allIds.addAll(mapCurrentPoints.keySet());
+            allIds.addAll(mapLastPoints.keySet());
+            Map<Long, Player> playerMap = new HashMap<>();
+            playerRepository.findByIdIsIn(new ArrayList<>(allIds)).forEach(o->{
+                playerMap.put(o.getId(),o);
+            });
+           if(!Objects.equals(lastUpdatedPoints.getCaptain(),points.getCaptain())){
+               stb.append("captain changed from :").append(playerMap.get(lastUpdatedPoints.getCaptain()).getName()).append("->").append(playerMap.get(points.getCaptain()).getName());
+               stb.append("\r\n");
+           }
+            if(!Objects.equals(lastUpdatedPoints.getVcaptain(),points.getVcaptain())){
+                stb.append("vcaptain changed from :").append(playerMap.get(lastUpdatedPoints.getVcaptain()).getName()).append("->").append(playerMap.get(points.getVcaptain()).getName());
+                stb.append("\r\n");
+            }
+            if(!Objects.equals(lastUpdatedPoints.getBowlinghero(),points.getBowlinghero())){
+                stb.append("bowlinghero changed from :").append(playerMap.get(lastUpdatedPoints.getBowlinghero()).getName()).append("->").append(playerMap.get(points.getBowlinghero()).getName());
+                stb.append("\r\n");
+            }
+            if(!Objects.equals(lastUpdatedPoints.getBattinghero(),points.getBattinghero())){
+                stb.append("battinghero changed from :").append(playerMap.get(lastUpdatedPoints.getBattinghero()).getName()).append("->").append(playerMap.get(points.getBattinghero()).getName());
+                stb.append("\r\n");
+            }
+            if(!Objects.equals(lastUpdatedPoints.getPlayer5(),points.getPlayer5())){
+                stb.append("player5 changed from :").append(playerMap.get(lastUpdatedPoints.getPlayer5()).getName()).append("->").append(playerMap.get(points.getPlayer5()).getName());
+                stb.append("\r\n");
+            }
+            if(!Objects.equals(lastUpdatedPoints.getPlayer6(),points.getPlayer6())){
+                stb.append("player6 changed from :").append(playerMap.get(lastUpdatedPoints.getPlayer6()).getName()).append("->").append(playerMap.get(points.getPlayer6()).getName());
+                stb.append("\r\n");
+            }
+            if(!Objects.equals(lastUpdatedPoints.getPlayer7(),points.getPlayer7())){
+                stb.append("player7 changed from :").append(playerMap.get(lastUpdatedPoints.getPlayer7()).getName()).append("->").append(playerMap.get(points.getPlayer7()).getName());
+                stb.append("\r\n");
+            }
+            if(!Objects.equals(lastUpdatedPoints.getPlayer8(),points.getPlayer8())){
+                stb.append("player8 changed from :").append(playerMap.get(lastUpdatedPoints.getPlayer8()).getName()).append("->").append(playerMap.get(points.getPlayer8()).getName());
+                stb.append("\r\n");
+            }
+            if(!Objects.equals(lastUpdatedPoints.getPlayer9(),points.getPlayer9())){
+                stb.append("player9 changed from :").append(playerMap.get(lastUpdatedPoints.getPlayer9()).getName()).append("->").append(playerMap.get(points.getPlayer9()).getName());
+                stb.append("\r\n");
+            }
+            if(!Objects.equals(lastUpdatedPoints.getPlayer10(),points.getPlayer10())){
+                stb.append("player10 changed from :").append(playerMap.get(lastUpdatedPoints.getPlayer10()).getName()).append("->").append(playerMap.get(points.getPlayer10()).getName());
+                stb.append("\r\n");
+            }
+            if(!Objects.equals(lastUpdatedPoints.getPlayer11(),points.getPlayer11())){
+                stb.append("player11 changed from :").append(playerMap.get(lastUpdatedPoints.getPlayer11()).getName()).append("->").append(playerMap.get(points.getPlayer11()).getName());
+                stb.append("\r\n");
+            }
+            if(!Objects.equals(lastUpdatedPoints.getPlayer12(),points.getPlayer12())){
+                stb.append("player12 changed from :").append(playerMap.get(lastUpdatedPoints.getPlayer12()).getName()).append("->").append(playerMap.get(points.getPlayer12()).getName());
+                stb.append("\r\n");
+            }
+        }else{
+            Set<Long> allIds = new HashSet<>();
+            allIds.addAll(mapCurrentPoints.keySet());
+            allIds.addAll(mapLastPoints.keySet());
+            Map<Long, Player> playerMap = new HashMap<>();
+            playerRepository.findByIdIsIn(new ArrayList<>(allIds)).forEach(o->{
+                playerMap.put(o.getId(),o);
+            });
+
+            stb.append("captain: ").append(playerMap.get(points.getCaptain()).getName()).append("\r\n");
+            stb.append("vcaptain: ").append(playerMap.get(points.getVcaptain()).getName()).append("\r\n");
+            stb.append("bowlinghero: ").append(playerMap.get(points.getBowlinghero()).getName()).append("\r\n");
+            stb.append("battinghero: ").append(playerMap.get(points.getBattinghero()).getName()).append("\r\n");
+            stb.append("player5: ").append(playerMap.get(points.getPlayer5()).getName()).append("\r\n");
+            stb.append("player6: ").append(playerMap.get(points.getPlayer6()).getName()).append("\r\n");
+            stb.append("player7: ").append(playerMap.get(points.getPlayer7()).getName()).append("\r\n");
+            stb.append("player8: ").append(playerMap.get(points.getPlayer8()).getName()).append("\r\n");
+            stb.append("player9: ").append(playerMap.get(points.getPlayer9()).getName()).append("\r\n");
+            stb.append("player10: ").append(playerMap.get(points.getPlayer10()).getName()).append("\r\n");
+            stb.append("player11: ").append(playerMap.get(points.getPlayer11()).getName()).append("\r\n");
+            stb.append("player12: ").append(playerMap.get(points.getPlayer12()).getName()).append("\r\n");
+        }
+        return stb.toString();
     }
 }
