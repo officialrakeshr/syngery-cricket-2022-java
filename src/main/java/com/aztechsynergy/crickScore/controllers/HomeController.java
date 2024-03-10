@@ -19,11 +19,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.DecimalFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @RestController
@@ -364,7 +368,7 @@ public class HomeController {
         Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(
                 matchNo
         );
-        Map<String, Object> match = (Map<String, Object>) cricInfoService.getIPLMatchDetails("en", SeriesID, tournament.getCricInfoId(), true);
+        Map<String, Object> match = cricInfoService.getIPLMatchDetails("en", SeriesID, tournament.getCricInfoId(), true);
         return ResponseEntity.ok(
                 match.get("scorecard")
         );
@@ -377,7 +381,7 @@ public class HomeController {
         Tournament tournament = tournamentRepository.findDistinctFirstByMatchNo(
                 matchNo
         );
-        Map<String, Object> match = (Map<String, Object>) cricInfoService.getIPLMatchOverDetails("en", SeriesID, tournament.getCricInfoId(), "ALL");
+        Map<String, Object> match = cricInfoService.getIPLMatchOverDetails("en", SeriesID, tournament.getCricInfoId(), "ALL");
         return ResponseEntity.ok(
                 match
         );
@@ -953,6 +957,298 @@ public class HomeController {
         );
     }
 
+    @GetMapping("/updateIPLTeamListFromCricInfo")
+    public ResponseEntity<?> updateIPLTeamListFromCricInfo() {
+        try{
+            Map<String, Object> data = this.cricInfoService.getIPLTeams("en", SeriesID);
+            Map<String, Object> content = (Map<String, Object>) data.get("content");
+            ArrayList<Map<String, Object>> teamsList = (ArrayList<Map<String, Object>>) content.get("teams");
+            ArrayList<Team> fantasticTeamList = new ArrayList<Team>();
+            teamsList.forEach(p->{
+                Map<String, Object> o = (Map<String, Object>) p.get("team");
+                fantasticTeamList.add(Team.builder()
+                        .teamId((Integer) o.get("id"))
+                        .name((String)o.get("longName"))
+                        .teamAbbr((String)o.get("name"))
+                        .logoUrl((String)o.get("imageUrl"))
+                        .build());
+            });
+            List<Team> temp = this.teamRepository.saveAll(fantasticTeamList);
+            System.out.println(temp);
+           return ResponseEntity.ok(
+                    true
+            );
+
+        }catch (Exception e){
+            return ResponseEntity.ok(
+                    false
+            );
+        }
+    }
+
+    @GetMapping("/updateIPLPlayersFromCricInfo")
+    public ResponseEntity<?> updateIPLPlayersFromCricInfo() {
+        try{
+            Map<String, Object> data = this.cricInfoService.getIPLSquads("en", SeriesID);
+            Map<String, Object> squadContent = (Map<String, Object>) data.get("content");
+            ArrayList<Map<String, Object>> squadsList = (ArrayList<Map<String, Object>>) squadContent.get("squads");
+            squadsList.forEach(p->{
+                Map<String, Object> o = (Map<String, Object>) p.get("squad");
+                Optional<Team> team = teamRepository.findByTeamId((Integer) o.get("teamId"));
+                Map<String, Object> teamSquad = this.cricInfoService.getIPLSquadDetailsBySquadId("en", SeriesID, (Integer) o.get("objectId"));
+                Map<String, Object> squadTeamContent = (Map<String, Object>) teamSquad.get("content");
+                Map<String, Object> squadDetails = (Map<String, Object>) squadTeamContent.get("squadDetails");
+                ArrayList<Map<String, Object>> playersList = (ArrayList<Map<String, Object>>) squadDetails.get("players");
+                Map<String, Object> squad = (Map<String, Object>) squadDetails.get("squad");
+                ArrayList<Player> plrList = new ArrayList<>();
+                playersList.forEach(player->{
+                    Map<String, Object> plr = (Map<String, Object>) player.get("player");
+                    plrList.add(Player.builder().team(((String) squad.get("title")).replaceAll(" Squad", ""))
+                                    .id(((Integer) plr.get("id")).longValue())
+                                    .name((String) plr.get("longName"))
+                                    .active("ACTIVE")
+                                    .teamId((Integer) squad.get("teamId"))
+                                    .imageUrl((String) plr.get("imageUrl"))
+
+                            .build());
+
+                });
+                this.playerRepository.saveAll(plrList);
+                team.ifPresent(t->{
+                    t.setSquadId((Integer) o.get("objectId"));
+                    teamRepository.save(t);
+                });
+            });
+            return ResponseEntity.ok(
+                    true
+            );
+
+        }catch (Exception e){
+            System.out.println(e);
+            return ResponseEntity.ok(
+                    false
+            );
+        }
+    }
+
+    @GetMapping("/updateIPLAllDetailsFromCricInfo")
+    public ResponseEntity<?> updateIPLAllDetailsFromCricInfo() {
+        try{
+            ///////////////////Team Initial list population//////////////////////////////
+            Map<String, Object> data1 = this.cricInfoService.getIPLTeams("en", SeriesID);
+            Map<String, Object> content = (Map<String, Object>) data1.get("content");
+            ArrayList<Map<String, Object>> teamsList = (ArrayList<Map<String, Object>>) content.get("teams");
+            ArrayList<Team> fantasticTeamList = new ArrayList<Team>();
+            teamsList.forEach(p->{
+                Map<String, Object> o = (Map<String, Object>) p.get("team");
+                fantasticTeamList.add(Team.builder()
+                        .teamId((Integer) o.get("id"))
+                        .name((String)o.get("longName"))
+                        .teamAbbr((String)o.get("name"))
+                        .logoUrl((String)o.get("imageUrl"))
+                        .build());
+            });
+            /////////////////////////Squad List////////////////////////////
+            Map<String, Object> data = this.cricInfoService.getIPLSquads("en", SeriesID);
+            Map<String, Object> squadContent = (Map<String, Object>) data.get("content");
+            ArrayList<Map<String, Object>> squadsList = (ArrayList<Map<String, Object>>) squadContent.get("squads");
+            squadsList.forEach(p->{
+                Map<String, Object> o = (Map<String, Object>) p.get("squad");
+                Map<String, Object> teamSquad = this.cricInfoService.getIPLSquadDetailsBySquadId("en", SeriesID, (Integer) o.get("objectId"));
+                Map<String, Object> squadTeamContent = (Map<String, Object>) teamSquad.get("content");
+                Map<String, Object> squadDetails = (Map<String, Object>) squadTeamContent.get("squadDetails");
+                ArrayList<Map<String, Object>> playersList = (ArrayList<Map<String, Object>>) squadDetails.get("players");
+                Map<String, Object> squad = (Map<String, Object>) squadDetails.get("squad");
+                ArrayList<Player> plrList = new ArrayList<>();
+                Optional<Team> team = fantasticTeamList.stream().filter(op-> Objects.equals(op.getTeamId(), (Integer) (squad.get("teamId")))).findAny();
+                playersList.forEach(player->{
+                    Map<String, Object> plr = (Map<String, Object>) player.get("player");
+                    plrList.add(Player.builder().team(((String) squad.get("title")).replaceAll(" Squad", ""))
+                            .id(((Integer) plr.get("id")).longValue())
+                            .name((String) plr.get("longName"))
+                            .active("active")
+                            .teamId((Integer) squad.get("teamId"))
+                            .imageUrl((String) plr.get("imageUrl"))
+
+                            .build());
+
+                });
+                this.playerRepository.saveAll(plrList);
+                team.ifPresent(t->{
+                    t.setSquadId((Integer) o.get("objectId"));
+                    teamRepository.save(t);
+                });
+            });
+            // team update
+            this.teamRepository.saveAll(fantasticTeamList);
+            //schedule update
+            Map<String, Object> data2 = this.cricInfoService.getIPLSchedule("en", SeriesID);
+            Map<String, Object> content2 = (Map<String, Object>) data2.get("content");
+            ArrayList<Map<String, Object>> matchList = (ArrayList<Map<String, Object>>) content2.get("matches");
+            ArrayList<Tournament> fantasticMatchList = new ArrayList<>();
+            List<Tournament> existingTournamentsDBs = tournamentRepository.findAll();
+            matchList.forEach(p->{
+                ArrayList<Map<String, Object>> teams = (ArrayList<Map<String, Object>>) p.get("teams");
+                Map<String, Object> team1 = (Map<String, Object>) teams.get(0).get("team");
+                Map<String, Object> team2 = (Map<String, Object>) teams.get(1).get("team");
+                int idInt = (Integer) p.get("id");
+                Long idLong = (long) idInt;
+                Optional<Tournament> existingTournamentsDB = existingTournamentsDBs.stream()
+                        .filter(o -> o.getId().equals(idLong))
+                        .findFirst();
+                if(existingTournamentsDB.isPresent()){
+                    Tournament t = existingTournamentsDB.get();
+                    fantasticMatchList.add(
+                            Tournament.builder()
+                                    .id(t.getId())
+                                    .matchNo(t.getMatchNo())
+                                    .enable11(t.getEnable11())
+                                    .completed(t.getCompleted())
+                                    .cricInfoURL("https://hs-consumer-api.espncricinfo.com/v1/pages/match/home?lang=en&seriesId="+SeriesID+"&matchId="+idLong)
+                                    .cricInfoId(idInt)
+                                    .venue("")
+                                    .matchdate(extractDate((String) p.get("startDate")))
+                                    .started(t.getStarted())
+                                    .abandoned(t.getAbandoned())
+                                    .unlimitSubstitution(t.getUnlimitSubstitution())
+                                    .matchtime(extractTime((String) p.get("startTime")))
+                                    .team1((String) team1.get("longName"))
+                                    .team2((String) team2.get("longName"))
+                                    .build());
+                }
+                else fantasticMatchList.add(Tournament.builder()
+                        .id(idLong)
+                        .matchNo(extractNumber((String) p.get("title")))
+                        .enable11(false)
+                        .completed(false)
+                        .cricInfoURL("https://hs-consumer-api.espncricinfo.com/v1/pages/match/home?lang=en&seriesId="+SeriesID+"&matchId="+idLong)
+                        .cricInfoId(idInt)
+                        .venue("")
+                        .matchdate(extractDate((String) p.get("startDate")))
+                        .started(false)
+                        .abandoned(false)
+                        .unlimitSubstitution(false)
+                        .matchtime(extractTime((String) p.get("startTime")))
+                        .team1((String) team1.get("longName"))
+                        .team2((String) team2.get("longName"))
+                        .build());
+            });
+            this.tournamentRepository.saveAll(fantasticMatchList);
+            return ResponseEntity.ok(
+                    true
+            );
+
+        }catch (Exception e){
+            System.out.println(e);
+            return ResponseEntity.ok(
+                    false
+            );
+        }
+    }
+    @GetMapping("/updateIPLscheduleFromCricInfo")
+    public ResponseEntity<?> updateIPLscheduleFromCricInfo() {
+        try{
+            Map<String, Object> data = this.cricInfoService.getIPLSchedule("en", SeriesID);
+            Map<String, Object> content = (Map<String, Object>) data.get("content");
+            ArrayList<Map<String, Object>> matchList = (ArrayList<Map<String, Object>>) content.get("matches");
+            ArrayList<Tournament> fantasticMatchList = new ArrayList<>();
+            List<Tournament> existingTournamentsDBs = tournamentRepository.findAll();
+            matchList.forEach(p->{
+                ArrayList<Map<String, Object>> teams = (ArrayList<Map<String, Object>>) p.get("teams");
+                Map<String, Object> team1 = (Map<String, Object>) teams.get(0).get("team");
+                Map<String, Object> team2 = (Map<String, Object>) teams.get(1).get("team");
+                int idInt = (Integer) p.get("id");
+                Long idLong = (long) idInt;
+                Optional<Tournament> existingTournamentsDB = existingTournamentsDBs.stream()
+                        .filter(o -> o.getId().equals(p.get("id")))
+                        .findFirst();
+                if(existingTournamentsDB.isPresent()){
+                    Tournament t = existingTournamentsDB.get();
+                    fantasticMatchList.add(
+                            Tournament.builder()
+                            .id(t.getId())
+                            .matchNo(t.getMatchNo())
+                            .enable11(t.getEnable11())
+                            .completed(t.getCompleted())
+                            .cricInfoURL("")
+                            .cricInfoId(idInt)
+                            .venue("")
+                            .matchdate(extractDate((String) p.get("startDate")))
+                            .started(t.getStarted())
+                            .abandoned(t.getAbandoned())
+                            .unlimitSubstitution(t.getUnlimitSubstitution())
+                            .matchtime(extractTime((String) p.get("startTime")))
+                            .team1((String) team1.get("longName"))
+                            .team2((String) team2.get("longName"))
+                            .build());
+                }
+               else fantasticMatchList.add(Tournament.builder()
+                                .id(idLong)
+                                .matchNo(extractNumber((String) p.get("title")))
+                                .enable11(false)
+                                .completed(false)
+                                .cricInfoURL("")
+                                .cricInfoId(idInt)
+                                .venue("")
+                                .matchdate(extractDate((String) p.get("startDate")))
+                                .started(false)
+                                .abandoned(false)
+                                .unlimitSubstitution(false)
+                                .matchtime(extractTime((String) p.get("startTime")))
+                                .team1((String) team1.get("longName"))
+                                .team2((String) team2.get("longName"))
+                        .build());
+            });
+            List<Tournament> temp = this.tournamentRepository.saveAllAndFlush(fantasticMatchList);
+            System.out.println(temp);
+            return ResponseEntity.ok(
+                    true
+            );
+
+        }catch (Exception e){
+            System.out.println(e.toString());
+            return ResponseEntity.ok(
+                    false
+            );
+        }
+    }
+    public String extractDate(String timestamp) {
+        SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        SimpleDateFormat outputFormat = new SimpleDateFormat("MMMM d, yyyy");
+        try {
+            Date date = inputFormat.parse(timestamp);
+            outputFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+            return outputFormat.format(date);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+    public String extractTime(String timestamp) {
+        SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        SimpleDateFormat outputFormat = new SimpleDateFormat("hh:mm a", Locale.US);
+        try {
+            Date date = inputFormat.parse(timestamp);
+            outputFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+            return outputFormat.format(date);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+    public String extractNumber(String str) {
+        Pattern pattern = Pattern.compile("\\d+");
+        Matcher matcher = pattern.matcher(str);
+
+        if (matcher.find()) {
+            return matcher.group();
+        }
+
+        // Return empty string if no number is found
+        return "";
+    }
     private String lookUpMaker(InningsSession match, Player a) {
         if (Objects.isNull(a) || Objects.isNull(a.getId())) {
             System.out.println(a);
