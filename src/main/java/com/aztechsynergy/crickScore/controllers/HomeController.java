@@ -204,8 +204,8 @@ public class HomeController {
                                         .lookUp(pointsLookup(matchNo, o))
                                         .username(o)
                                         .matchNo(matchNo)
-                                        .free(2)
-                                        .total((2 + prevSubUnused) > 4 ? 2 : 2 + prevSubUnused)
+                                        .free(3)
+                                        .total((3 + prevSubUnused) > 5 ? 3 : 3 + prevSubUnused)
                                         .used(0)
                                         .build()
                         );
@@ -309,8 +309,8 @@ public class HomeController {
                                         .lookUp(pointsLookup(match.getMatchNo(), p))
                                         .username(p)
                                         .matchNo(match.getMatchNo())
-                                        .free(2)
-                                        .total((2 + prevSubUnused) > 4 ? 2 : 2 + prevSubUnused)
+                                        .free(3)
+                                        .total((3 + prevSubUnused) > 5 ? 3 : 3 + prevSubUnused)
                                         .used(0)
                                         .build()
                         );
@@ -556,8 +556,8 @@ public class HomeController {
                                 .lookUp(pointsLookup(matchNo, user.get().getUsername()))
                                 .username(user.get().getUsername())
                                 .matchNo(matchNo)
-                                .free(2)
-                                .total((2 + prevSubUnused) > 4 ? 2 : 2 + prevSubUnused)
+                                .free(3)
+                                .total((3 + prevSubUnused) > 5 ? 3 : 3 + prevSubUnused)
                                 .used(0)
                                 .build()
                 );
@@ -689,8 +689,8 @@ public class HomeController {
                                 .lookUp(pointsLookup(points.getMatchNo(), points.getUsername()))
                                 .username(points.getUsername())
                                 .matchNo(points.getMatchNo())
-                                .free(2)
-                                .total((2 + prevSubUnused) > 4 ? 2 : 2 + prevSubUnused)
+                                .free(3)
+                                .total((3 + prevSubUnused) > 5 ? 3 : 3 + prevSubUnused)
                                 .used(1)
                                 .build()
                 );
@@ -958,6 +958,7 @@ public class HomeController {
     }
 
     @GetMapping("/updateIPLTeamListFromCricInfo")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateIPLTeamListFromCricInfo() {
         try{
             Map<String, Object> data = this.cricInfoService.getIPLTeams("en", SeriesID);
@@ -987,6 +988,7 @@ public class HomeController {
     }
 
     @GetMapping("/updateIPLPlayersFromCricInfo")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateIPLPlayersFromCricInfo() {
         try{
             Map<String, Object> data = this.cricInfoService.getIPLSquads("en", SeriesID);
@@ -1032,6 +1034,7 @@ public class HomeController {
     }
 
     @GetMapping("/updateIPLAllDetailsFromCricInfo")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateIPLAllDetailsFromCricInfo() {
         try{
             ///////////////////Team Initial list population//////////////////////////////
@@ -1146,6 +1149,7 @@ public class HomeController {
         }
     }
     @GetMapping("/updateIPLscheduleFromCricInfo")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateIPLscheduleFromCricInfo() {
         try{
             Map<String, Object> data = this.cricInfoService.getIPLSchedule("en", SeriesID);
@@ -1199,7 +1203,7 @@ public class HomeController {
                                 .team2((String) team2.get("longName"))
                         .build());
             });
-            List<Tournament> temp = this.tournamentRepository.saveAllAndFlush(fantasticMatchList);
+            List<Tournament> temp = this.tournamentRepository.saveAll(fantasticMatchList);
             System.out.println(temp);
             return ResponseEntity.ok(
                     true
@@ -1343,7 +1347,7 @@ public class HomeController {
                             sub.getUsed() >= 0 &&
                             sub.getUsed() > sub.getTotal()
             ) {
-                p.setOverSubNegativePoints((sub.getTotal() - sub.getUsed()) * 25.0);
+                p.setOverSubNegativePoints(overSubNegativeCalc(sub.getTotal() - sub.getUsed()));
                 total = total + p.getOverSubNegativePoints();
             }
             p.setTotal(total);
@@ -1355,6 +1359,49 @@ public class HomeController {
         }
         pointsRepository.saveAll(pointsDatas);
     }
+    private Double overSubNegativeCalc(Integer extraSub) {
+        double returnVal = 0.0;
+        if (extraSub < 1) {
+            // Return 0 for values less than 1
+            returnVal = 0.0;
+        } else if (extraSub > 9) {
+            // Return the value times -250 for values greater than 9
+            returnVal = -250.0 * extraSub;
+        } else {
+            // Calculate the return value based on the switch cases
+            switch (extraSub) {
+                case 1:
+                    returnVal = -25.0;
+                    break;
+                case 2:
+                    returnVal = -100.0;
+                    break;
+                case 3:
+                    returnVal = -225.0;
+                    break;
+                case 4:
+                    returnVal = -400.0;
+                    break;
+                case 5:
+                    returnVal = -625.0;
+                    break;
+                case 6:
+                    returnVal = -900.0;
+                    break;
+                case 7:
+                    returnVal = -1400.0;
+                    break;
+                case 8:
+                    returnVal = -1600.0;
+                    break;
+                case 9:
+                    returnVal = -1800.0;
+                    break;
+            }
+        }
+        return returnVal;
+    }
+
 
     private String lookup2(String matchNo, Long playerID) {
         return matchNo.trim().trim().concat("_").concat(Long.toString(playerID));
