@@ -679,8 +679,8 @@ public class HomeController {
             );
             if (subMatch.isPresent()) {
                 Substitution subV = subMatch.get();
-                subV.setFree(2);
-                subV.setTotal((2 + prevSubUnused) > 4 ? 2 : 2 + prevSubUnused);
+                subV.setFree(3);
+                subV.setTotal((3 + prevSubUnused) > 5 ? 3 : 3 + prevSubUnused);
                 subV.setUsed(subV.getUsed() + 1);
             } else {
                 substitutionRepository.save(
@@ -1091,6 +1091,7 @@ public class HomeController {
             ArrayList<Tournament> fantasticMatchList = new ArrayList<>();
             List<Tournament> existingTournamentsDBs = tournamentRepository.findAll();
             matchList.forEach(p->{
+                Map<String, Object> groundDetails = (Map<String, Object>) p.get("ground");
                 ArrayList<Map<String, Object>> teams = (ArrayList<Map<String, Object>>) p.get("teams");
                 Map<String, Object> team1 = (Map<String, Object>) teams.get(0).get("team");
                 Map<String, Object> team2 = (Map<String, Object>) teams.get(1).get("team");
@@ -1109,7 +1110,7 @@ public class HomeController {
                                     .completed(t.getCompleted())
                                     .cricInfoURL("https://hs-consumer-api.espncricinfo.com/v1/pages/match/home?lang=en&seriesId="+SeriesID+"&matchId="+idLong)
                                     .cricInfoId(idInt)
-                                    .venue("")
+                                    .venue((String) groundDetails.get("longName"))
                                     .matchdate(extractDate((String) p.get("startDate")))
                                     .started(t.getStarted())
                                     .abandoned(t.getAbandoned())
@@ -1126,7 +1127,7 @@ public class HomeController {
                         .completed(false)
                         .cricInfoURL("https://hs-consumer-api.espncricinfo.com/v1/pages/match/home?lang=en&seriesId="+SeriesID+"&matchId="+idLong)
                         .cricInfoId(idInt)
-                        .venue("")
+                        .venue((String) groundDetails.get("longName"))
                         .matchdate(extractDate((String) p.get("startDate")))
                         .started(false)
                         .abandoned(false)
