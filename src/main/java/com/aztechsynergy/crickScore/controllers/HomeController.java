@@ -1334,11 +1334,24 @@ public class HomeController {
             }
             if (map.get(lookup2(matchNo, p.getPlayer11())) != null) {
                 p.setPlayer11Point(map.get(lookup2(matchNo, p.getPlayer11())) * 1.0);
-                total = total + p.getPlayer11Point();
+               // total = total + p.getPlayer11Point();
             }
             if (map.get(lookup2(matchNo, p.getPlayer12())) != null) {
                 p.setPlayer12Point(map.get(lookup2(matchNo, p.getPlayer12())) * 1.0);
+               // total = total + p.getPlayer12Point();
+            }
+            //In 2024 edition - only one imapct sub score will be taken - better one
+            if (Double.compare(p.getPlayer11Point(), p.getPlayer12Point()) == 0) {
+                total = total + p.getPlayer11Point();
+                p.setPlayer12Point(0.0);
+            }
+            else if (Double.compare(p.getPlayer11Point(), p.getPlayer12Point()) < 0) {
                 total = total + p.getPlayer12Point();
+                p.setPlayer11Point(0.0);
+            }
+            else {
+                total = total + p.getPlayer11Point();
+                p.setPlayer12Point(0.0);
             }
             if (
                     !Objects.isNull(sub) &&
