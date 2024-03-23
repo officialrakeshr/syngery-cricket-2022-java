@@ -1095,7 +1095,7 @@ public class HomeController {
                 ArrayList<Map<String, Object>> teams = (ArrayList<Map<String, Object>>) p.get("teams");
                 Map<String, Object> team1 = (Map<String, Object>) teams.get(0).get("team");
                 Map<String, Object> team2 = (Map<String, Object>) teams.get(1).get("team");
-                int idInt = (Integer) p.get("id");
+                int idInt = (Integer) p.get("scribeId");
                 Long idLong = (long) idInt;
                 Optional<Tournament> existingTournamentsDB = existingTournamentsDBs.stream()
                         .filter(o -> o.getId().equals(idLong))
