@@ -24,6 +24,10 @@ public class Tournament {
 
     private String team2;
 
+    private Integer team1Id;
+
+    private Integer team2Id;
+
     private Boolean started;
 
     private Boolean completed;

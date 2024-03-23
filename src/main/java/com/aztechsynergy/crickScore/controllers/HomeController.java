@@ -158,14 +158,14 @@ public class HomeController {
                                 TeamDTO
                                         .builder()
                                         .name(a.getTeam1())
-                                        .players(playerRepository.findByTeam(a.getTeam1()))
+                                        .players(playerRepository.findPlayerByTeamId(a.getTeam1Id()))
                                         .build()
                         )
                         .team2(
                                 TeamDTO
                                         .builder()
                                         .name(a.getTeam2())
-                                        .players(playerRepository.findByTeam(a.getTeam2()))
+                                        .players(playerRepository.findPlayerByTeamId(a.getTeam2Id()))
                                         .build()
                         )
                         .build()
@@ -1117,7 +1117,9 @@ public class HomeController {
                                     .unlimitSubstitution(t.getUnlimitSubstitution())
                                     .matchtime(extractTime((String) p.get("startTime")))
                                     .team1((String) team1.get("longName"))
+                                    .team1Id((Integer) team1.get("id"))
                                     .team2((String) team2.get("longName"))
+                                    .team2Id((Integer) team2.get("id"))
                                     .build());
                 }
                 else fantasticMatchList.add(Tournament.builder()
