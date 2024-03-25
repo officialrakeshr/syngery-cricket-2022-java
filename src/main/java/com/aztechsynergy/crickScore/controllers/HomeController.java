@@ -1246,6 +1246,17 @@ public class HomeController {
         }
     }
     public String extractNumber(String str) {
+        switch (str) {
+            case "Qualifier 1":
+                return "101";
+            case "Eliminator":
+                return "102";
+            case "Qualifier 2":
+                return "103";
+            case "Final":
+                return "111";
+        }
+
         Pattern pattern = Pattern.compile("\\d+");
         Matcher matcher = pattern.matcher(str);
 
