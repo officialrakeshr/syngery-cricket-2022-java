@@ -1374,7 +1374,7 @@ public class HomeController {
                             sub.getUsed() >= 0 &&
                             sub.getUsed() > sub.getTotal()
             ) {
-                p.setOverSubNegativePoints(overSubNegativeCalc(sub.getTotal() - sub.getUsed()));
+                p.setOverSubNegativePoints(overSubNegativeCalc(sub.getUsed()-sub.getTotal()));
                 total = total + p.getOverSubNegativePoints();
             }
             p.setTotal(total);
