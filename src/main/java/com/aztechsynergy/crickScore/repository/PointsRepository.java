@@ -24,6 +24,6 @@ public interface PointsRepository extends JpaRepository<Points, Long> {
     List<String> findUsersByMatchNo(String matchNo);
     @Query(value ="SELECT u.name as username, u.phone as phone, sum(p.total) as total, u.house as house FROM Points p join User u on p.username = u.username group by p.username order by total desc")
     List<Map<String, Object>> findLeagueRankForPlayers();
-    @Query(value ="SELECT u.name as username, p.total as total, p.matchNo as matchNo FROM Points p join User u on p.username = u.username order by CAST(p.matchNo AS int ) DESC")
+    @Query(value ="SELECT u.name as username, p.total as total, p.matchNo as matchNo FROM Points p join User u on p.username = u.username where p.rank_no = 1 order by CAST(p.matchNo AS int ) DESC")
     List<Map<String, Object>> findGameToppers();
 }
