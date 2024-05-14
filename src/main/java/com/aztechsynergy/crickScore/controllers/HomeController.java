@@ -201,18 +201,15 @@ public class HomeController {
                     );
                     if (prevMatchSub.isPresent()) {
                         Substitution preSubDa = prevMatchSub.get();
-                        int prevSubUnused = preSubDa.getTotal() - preSubDa.getUsed() > -1
-                                ? preSubDa.getTotal() - preSubDa.getUsed()
-                                : 0;
                         substitutionRepository.save(
                                 Substitution
                                         .builder()
                                         .lookUp(pointsLookup(matchNo, o))
                                         .username(o)
                                         .matchNo(matchNo)
-                                        .free(3)
-                                        .total((3 + prevSubUnused) > 5 ? 3 : 3 + prevSubUnused)
-                                        .used(0)
+                                        .free(preSubDa.getFree())
+                                        .total(preSubDa.getTotal())
+                                        .used(preSubDa.getUsed())
                                         .build()
                         );
                     }
