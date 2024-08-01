@@ -9,7 +9,9 @@ import com.aztechsynergy.crickScore.model.User;
 import com.aztechsynergy.crickScore.repository.RoleRepository;
 import com.aztechsynergy.crickScore.repository.UserRepository;
 import com.aztechsynergy.crickScore.security.jwt.JwtProvider;
+import com.aztechsynergy.crickScore.security.services.UserPrinciple;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,9 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 
 @RestController
@@ -56,9 +56,11 @@ public class AuthController {
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
-
         String jwt = jwtProvider.generateJwtToken(authentication);
-        return ResponseEntity.ok(new JwtResponse(jwt));
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("name", ((UserPrinciple) authentication.getPrincipal()).getName() );
+        headers.add("Access-Control-Expose-Headers" , "name");
+        return new ResponseEntity<>(new JwtResponse(jwt), headers, HttpStatus.OK);
     }
 
     @PostMapping("/signup")
@@ -67,10 +69,10 @@ public class AuthController {
             return ResponseEntity.ok(false);
         }
 
-        if(signUpRequest.getRole().contains("user") && (Objects.isNull(signUpRequest.getMatchNumber()) || signUpRequest.getMatchNumber().equals(""))){
+       /* if(signUpRequest.getRole().contains("user") && (Objects.isNull(signUpRequest.getMatchNumber()) || signUpRequest.getMatchNumber().equals(""))){
             return ResponseEntity.badRequest().body("Match Number missing");
         }
-        /*if(userRepository.existsByEmail(signUpRequest.getEmail())) {
+        if(userRepository.existsByEmail(signUpRequest.getEmail())) {
             return new ResponseEntity<String>("Fail -> Email is already in use!",
                     HttpStatus.BAD_REQUEST);
         }*/
@@ -114,7 +116,26 @@ public class AuthController {
 
         return ResponseEntity.ok(true);
     }
-
+    @PostMapping("/signUpGamers")
+    public ResponseEntity<?> signUpGamers(@Valid @RequestBody List<SignUpForm> signUpRequests) {
+        List<User> users = new ArrayList<>();
+        Optional<Role> userRole = roleRepository.findByName(RoleName.ROLE_USER);
+        // Creating user's account
+        for(SignUpForm signUpRequest : signUpRequests) {
+            User user = User.builder()
+                    .username(signUpRequest.getUsername())
+                    .name(signUpRequest.getName())
+                    .password(encoder.encode(signUpRequest.getUsername()))
+                    .build();
+            Set<String> strRoles = signUpRequest.getRole();
+            Set<Role> roles = new HashSet<>();
+            roles.add(userRole.orElseThrow(null));
+            user.setRoles(roles);
+            users.add(user);
+        }
+        userRepository.saveAll(users);
+        return ResponseEntity.ok(true);
+    }
     @GetMapping("/test")
     public ResponseEntity<?> test() {
 

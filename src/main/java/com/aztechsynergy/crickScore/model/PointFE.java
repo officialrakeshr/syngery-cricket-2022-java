@@ -1,40 +1,28 @@
 package com.aztechsynergy.crickScore.model;
 
 import lombok.*;
-import org.hibernate.annotations.NaturalId;
-
-import javax.persistence.*;
-import java.util.Date;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Setter
 @Getter
 @Builder
-@Entity
-@Table(name = "points_db")
-@ToString
-public class Points implements Comparable<Points>{
-    @NaturalId
-    @Id
+public class PointFE {
+    private Double total = 0.0;
     private String lookUp;
     private String matchNo;
-    private String username;
-    private Integer rank_no;
-    @Builder.Default
-    private Double total = 0.0;
-    private Long captain;
-    private Long vcaptain;
-    private Long battinghero;
-    private Long bowlinghero;
-    private Long player5;
-    private Long player6;
-    private Long player7;
-    private Long player8;
-    private Long player9;
-    private Long player10;
-    private Long player11;
-    private Long player12;
+    private String captain;
+    private String vcaptain;
+    private String battinghero;
+    private String bowlinghero;
+    private String player5;
+    private String player6;
+    private String player7;
+    private String player8;
+    private String player9;
+    private String player10;
+    private String player11;
+    private String player12;
     @Builder.Default
     private Double captainPoint = 0.0;
     @Builder.Default
@@ -58,14 +46,7 @@ public class Points implements Comparable<Points>{
     private Double player11Point = 0.0;
     @Builder.Default
     private Double player12Point = 0.0;
-    private Date lastUpdatedTime;
 
-    private Double overSubNegativePoints;
-
-
-
-    @Override
-    public int compareTo(Points o) {
-        return this.getTotal().compareTo(o.getTotal());
-    }
+    @Builder.Default
+    private Double overSubNegativePoints = 0.0;
 }

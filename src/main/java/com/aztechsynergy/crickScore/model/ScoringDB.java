@@ -52,5 +52,9 @@ public class ScoringDB {
     private Double economy;
     private Integer  sRBonus;
     private Integer  economyBonus;
+    private Integer battingPoints;
+    private Integer bowlingPoints;
+    private Integer battingHeroBonus;
+    private Integer bowlingHeroBonus;
     private Integer  totalPlayerPoint;
 }

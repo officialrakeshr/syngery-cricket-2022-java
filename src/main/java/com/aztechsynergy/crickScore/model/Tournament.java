@@ -12,9 +12,9 @@ import javax.persistence.*;
 @Builder
 @Entity
 @Table(name = "tournament")
+@ToString
 public class Tournament {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @NaturalId
@@ -24,11 +24,29 @@ public class Tournament {
 
     private String team2;
 
+    private Integer team1Id;
+
+    private Integer team2Id;
+
     private Boolean started;
 
     private Boolean completed;
 
     private Boolean enable11;
+
+    private String matchdate;
+
+    private String venue;
+
+    private String matchtime;
+
+    private Boolean unlimitSubstitution;
+
+    private Boolean abandoned;
+
+    private Integer cricInfoId;
+
+    private String cricInfoURL;
 
 
 }
